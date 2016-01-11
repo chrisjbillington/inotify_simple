@@ -10,7 +10,7 @@ from errno import EINTR
 from termios import FIONREAD
 from fcntl import ioctl
 
-__all__ = ['flags', 'masks', 'parse_events', 'INotify']
+__all__ = ['flags', 'masks', 'parse_events', 'INotify', 'Event']
 
 _libc = ctypes.cdll.LoadLibrary('libc.so.6')
 _libc.__errno_location.restype = ctypes.POINTER(ctypes.c_int)

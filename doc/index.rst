@@ -15,7 +15,7 @@ No fancy bells and whistles, just a literal wrapper with ctypes. Only 95
 lines of code!
 
 ``inotify_init()`` is wrapped as a class that does little more than hold the
-resulting inotify file descriptor. A :func:`~INotify.read` method is provided
+resulting inotify file descriptor. A ``read()`` method is provided
 which reads available data from the file descriptor and returns events as
 ``namedtuple``s after unpacking them with the ``struct`` module.
 ``inotify_add_watch()`` and ``inotify_rm_watch`` are wrapped with no changes
