@@ -9,7 +9,7 @@ inotify_simple |release|
    :maxdepth: 2
 
 
-``inotify_simple`` is a simple wrapper around
+``inotify_simple`` is a simple Python wrapper around
 `inotify <http://man7.org/linux/man-pages/man7/inotify.7.html>`_.
 No fancy bells and whistles, just a literal wrapper with ctypes. Only 95
 lines of code!
@@ -24,7 +24,7 @@ expected to keep track of itself, just as one would use inotify from C. Works
 with Python 2 or 3.
 
 `View on PyPI <http://pypi.python.org/pypi/inotify_simple>`_
-| `Fork me on GitHub <http://github.org/cbillington/inotify_simple>`_
+| `Fork me on GitHub <https://github.com/chrisjbillington/inotify_simple>`_
 | `Read the docs <http://inotify_simple.readthedocs.org>`_
 
 *************
@@ -122,7 +122,7 @@ Example usage
     Event(wd=1, mask=32768, cookie=0, name=u'')
         flags.IGNORED
 
-Note that the flags, since they are defined with an `enum.IntEnum`, print as
+Note that the flags, since they are defined with an ``enum.IntEnum``, print as
 what they are called rather than their integer values. However they are still
 just integers and so can be ANDed and ORed etc with masks etc. The
 ``flags.from_mask()`` method ANDs a mask with all possible flags and returns a

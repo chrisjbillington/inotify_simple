@@ -1,0 +1,27 @@
+inotify_init() is wrapped as a class that does little more than hold the
+resulting inotify file descriptor. A read() method is provided which reads
+available data from the file descriptor and returns events as namedtuples
+after unpacking them with the struct module. inotify_add_watch() and
+inotify_rm_watch() are wrapped with no changes at all, taking and returning
+watch descriptor integers that calling code is expected to keep track of
+itself, just as one would use inotify from C. Works with Python 2 or 3.
+
+Fork me on github: https://github.com/chrisjbillington/inotify_simple
+Read the docs: http://inotify_simple.readthedocs.org
+
+Installation:
+
+to install `inotify_simple`, run:
+
+    $ pip install inotify_simple
+
+or to install from source:
+
+    $ python setup.py install
+
+inotify_simple is a small amount of code and unlikely to change much in the
+future until inotify itself or Python changes, so you can also just copy and
+paste it into your project to avoid the extra dependency with pretty low risk.
+
+
+See full documentation at http://inotify_simple.readthedocs.org

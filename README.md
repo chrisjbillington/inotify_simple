@@ -1,6 +1,6 @@
 # inotify_simple 1.0
 
-`inotify_simple` is a simple wrapper around
+`inotify_simple` is a simple Python wrapper around
 [inotify](http://man7.org/linux/man-pages/man7/inotify.7.html).
 No fancy bells and whistles, just a literal wrapper with ctypes. Only 95
 lines of code!
@@ -14,7 +14,7 @@ watch descriptor integers that calling code is expected to keep track of
 itself, just as one would use inotify from C. Works with Python 2 or 3.
 
 [View on PyPI](http://pypi.python.org/pypi/inotify_simple) |
-[Fork me on github](http://github.org/cbillington/inotify_simple) |
+[Fork me on github](https://github.com/chrisjbillington/inotify_simple) |
 [Read the docs](http://inotify_simple.readthedocs.org)
 
 
