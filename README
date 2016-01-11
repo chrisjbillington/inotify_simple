@@ -7,6 +7,7 @@ watch descriptor integers that calling code is expected to keep track of
 itself, just as one would use inotify from C. Works with Python 2 or 3.
 
 Fork me on github: https://github.com/chrisjbillington/inotify_simple
+
 Read the docs: http://inotify_simple.readthedocs.org
 
 Installation:
