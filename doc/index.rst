@@ -1,12 +1,13 @@
 
-########################
+========================
 inotify_simple |release|
-########################
+========================
 
 `Chris Billington <mailto:chrisjbillington@gmail.com>`_, |today|
 
-.. toctree::
-   :maxdepth: 2
+
+.. contents::
+    :local:
 
 
 ``inotify_simple`` is a simple Python wrapper around
@@ -16,7 +17,7 @@ lines of code!
 
 ``inotify_init()`` is wrapped as a class that does little more than hold the
 resulting inotify file descriptor. A ``read()`` method is provided which reads
-available data from the file descriptor and returns events as a list
+available data from the file descriptor and returns events as a list of
 ``namedtuple`` objects after unpacking them with the ``struct`` module.
 ``inotify_add_watch()`` and ``inotify_rm_watch`` are wrapped with no changes
 at all, taking and returning watch descriptor integers that calling code is
@@ -27,9 +28,9 @@ with Python 2 or 3.
 | `Fork me on GitHub <https://github.com/chrisjbillington/inotify_simple>`_
 | `Read the docs <http://inotify_simple.readthedocs.org>`_
 
-*************
+------------
 Installation
-*************
+------------
 
 to install ``inotify_simple``, run:
 
@@ -51,9 +52,9 @@ or to install from source:
 future until inotify itself or Python changes, so you can also just copy and
 paste it into your project to avoid the extra dependency with pretty low risk.
 
-*************
+------------
 Introduction
-*************
+------------
 
 There are many inotify python wrappers out there. `I found them all
 unsatisfactory <https://xkcd.com/927/>`_. Most are far too high-level for my
@@ -66,9 +67,9 @@ if I've written it right, it will remain functional well into the future with
 no changes, recompilation or attention on my part.
 
 
-*************
+-------------
 Example usage
-*************
+-------------
 
 .. code-block:: python
     :name: example.py
@@ -136,9 +137,9 @@ generally bitwise-AND masks with flags of interest itself so as to not do
 unnecessary checks.
 
 
-****************
+----------------
 Module reference
-****************
+----------------
 
 
 .. autoclass:: inotify_simple.INotify
@@ -153,3 +154,13 @@ Module reference
 
 .. autoclass:: inotify_simple.masks
     :members:
+
+----------------
+Full source code
+----------------
+
+Free to copy and paste into your project subject to the simplified BSD
+license. Presented here for ease of verifying that this wrapper is as sensible
+as it claims to be.
+
+.. literalinclude:: fullsource.py
