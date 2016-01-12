@@ -1,5 +1,5 @@
 clean:
-	rm -rf build fullsource.py
+	rm -rf build
 
 html:
 	sphinx-build -b html . build/html
