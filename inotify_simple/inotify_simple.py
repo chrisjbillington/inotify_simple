@@ -72,14 +72,19 @@ class masks(enum.IntEnum):
     #: helper event mask equal to ``flags.MOVED_FROM | flags.MOVED_TO``
     MOVE = (flags.MOVED_FROM | flags.MOVED_TO)
 
-    #: OR of all the events that can be passed to :func:`~inotify_simple.INotify.add_watch`
+    #: bitwise-OR of all the events that can be passed to
+    #: :func:`~inotify_simple.INotify.add_watch`
     ALL_EVENTS  = (flags.ACCESS | flags.MODIFY | flags.ATTRIB | flags.CLOSE_WRITE |
                    flags.CLOSE_NOWRITE | flags.OPEN | flags.MOVED_FROM |
                    flags.MOVED_TO | flags.DELETE | flags.CREATE | flags.DELETE_SELF |
                    flags.MOVE_SELF)
 
 
-#: A namedtuple (wd, mask, cookie, name) for an inotify event
+#: A ``namedtuple`` (wd, mask, cookie, name) for an inotify event.
+#: ``nemdtuple`` objects are very lightweight to instantiate and access, whilst
+#: being human readable when printed, which is useful for debugging and
+#: logging. For best performance, note that element access by index is about
+#: four times faster than by name.
 Event = collections.namedtuple('Event', ['wd', 'mask', 'cookie', 'name'])
 
 _EVENT_STRUCT_FORMAT = 'iIII'
@@ -130,7 +135,7 @@ class INotify():
             path (str): The path to watch
 
             mask (int): The mask of events to watch for. Can be constructed by
-                ORing :class:`~inotify_simple.flags` together.
+                bitwise-ORing :class:`~inotify_simple.flags` together.
 
         Returns:
             int: watch descriptor"""

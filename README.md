@@ -7,11 +7,12 @@ lines of code!
 
 `inotify_init()` is wrapped as a class that does little more than hold the
 resulting inotify file descriptor. A `read()` method is provided which reads
-available data from the file descriptor and returns events as `namedtuple`s
-after unpacking them with the `struct` module. `inotify_add_watch()` and
-`inotify_rm_watch()` are wrapped with no changes at all, taking and returning
-watch descriptor integers that calling code is expected to keep track of
-itself, just as one would use inotify from C. Works with Python 2 or 3.
+available data from the file descriptor and returns events as `namedtuple`
+objects after unpacking them with the `struct` module. `inotify_add_watch()`
+and `inotify_rm_watch()` are wrapped with no changes at all, taking and
+returning watch descriptor integers that calling code is expected to keep
+track of itself, just as one would use inotify from C. Works with Python 2 or
+3.
 
 [View on PyPI](http://pypi.python.org/pypi/inotify_simple) |
 [Fork me on github](https://github.com/chrisjbillington/inotify_simple) |
@@ -109,10 +110,11 @@ Event(wd=1, mask=32768, cookie=0, name=u'')
 
 Note that the flags, since they are defined with an `enum.IntEnum`, print as
 what they are called rather than their integer values. However they are still
-just integers and so can be ANDed and ORed etc with masks etc. The
-`flags.from_mask()` method ANDs a mask with all possible flags and returns a
-list of matches. This is for convenience and useful for debugging which events
-are coming through, but performance critical code should generally AND masks
-with flags of interest itself so as to not do unnecessary checks.
+just integers and so can be bitwise-ANDed and ORed etc with masks etc. The
+`flags.from_mask()` method bitwise-ANDs a mask with all possible flags and
+returns a list of matches. This is for convenience and useful for debugging
+which events are coming through, but performance critical code should
+generally bitwise-AND masks with flags of interest itself so as to not do
+unnecessary checks.
 
 [See here](http://inotify_simple.readthedocs.org) for more.
