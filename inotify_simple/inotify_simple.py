@@ -28,7 +28,7 @@ def _libc_call(function, *args):
         return rc
 
 
-class INotify():
+class INotify(object):
     def __init__(self):
         """Object wrapper around ``inotify_init()`` which stores the inotify file
         descriptor. Raises an OSError on failure. :func:`~inotify_simple.INotify.close`
