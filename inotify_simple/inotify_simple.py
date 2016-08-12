@@ -81,7 +81,10 @@ class INotify(object):
             list: list of :attr:`~inotify_simple.Event` namedtuples"""
         # Wait for the first event:
         pending = self._poller.poll(timeout)
-        if pending and read_delay is not None:
+        if not pending:
+            # Timed out, no events
+            return []
+        elif pending and read_delay is not None:
             # Wait for more events to accumulate:
             time.sleep(read_delay/1000.0)
         # How much data is available to read?
