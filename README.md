@@ -2,7 +2,7 @@
 
 `inotify_simple` is a simple Python wrapper around
 [inotify](http://man7.org/linux/man-pages/man7/inotify.7.html).
-No fancy bells and whistles, just a literal wrapper with ctypes. Only 95
+No fancy bells and whistles, just a literal wrapper with ctypes. Only 96
 lines of code!
 
 `inotify_init()` is wrapped as a class that does little more than hold the
