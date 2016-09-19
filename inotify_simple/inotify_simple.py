@@ -1,4 +1,5 @@
 import os
+import sys
 import enum
 import collections
 import struct
@@ -9,6 +10,14 @@ from errno import EINTR
 from termios import FIONREAD
 from fcntl import ioctl
 
+if sys.version_info.major < 3:
+    #In 32-bit Python < 3 the inotify constants don't fit in an IntEnum and will
+    #cause an OverflowError. Overwiting the IntEnum with a LongEnum fixes this
+    #problem.
+    class LongEnum(long, enum.Enum):
+        """Enum where members are also (and must be) longs"""
+    enum.IntEnum = LongEnum
+    
 __all__ = ['flags', 'masks', 'parse_events', 'INotify', 'Event']
 
 _libc = ctypes.cdll.LoadLibrary('libc.so.6')
