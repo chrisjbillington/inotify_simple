@@ -1,4 +1,5 @@
 import os
+import sys
 import enum
 import collections
 import struct
@@ -9,6 +10,16 @@ from errno import EINTR
 from termios import FIONREAD
 from fcntl import ioctl
 
+if sys.version_info.major < 3:
+    #In 32-bit Python < 3 the inotify constants don't fit in an IntEnum and will
+    #cause an OverflowError. Overwiting the IntEnum with a LongEnum fixes this
+    #problem.
+    class LongEnum(long, enum.Enum):
+        """Enum where members are also (and must be) longs"""
+    EnumType = LongEnum
+else:
+    EnumType = enum.IntEnum
+    
 __all__ = ['flags', 'masks', 'parse_events', 'INotify', 'Event']
 
 _libc = ctypes.cdll.LoadLibrary('libc.so.6')
@@ -141,7 +152,7 @@ def parse_events(data):
     return events
 
 
-class flags(enum.IntEnum):
+class flags(EnumType):
     """Inotify flags as defined in ``inotify.h`` but with ``IN_`` prefix
     omitted. Includes a convenience method for extracting flags from a mask.
     """
@@ -175,7 +186,7 @@ class flags(enum.IntEnum):
         return [flag for flag in cls.__members__.values() if flag & mask]
 
 
-class masks(enum.IntEnum):
+class masks(EnumType):
     """Convenience masks as defined in ``inotify.h`` but with ``IN_`` prefix
     omitted."""
     #: helper event mask equal to ``flags.CLOSE_WRITE | flags.CLOSE_NOWRITE``
