@@ -1,4 +1,4 @@
-# inotify_simple 1.0
+# inotify_simple 1.1
 
 `inotify_simple` is a simple Python wrapper around
 [inotify](http://man7.org/linux/man-pages/man7/inotify.7.html).
