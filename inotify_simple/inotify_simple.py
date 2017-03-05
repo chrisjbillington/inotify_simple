@@ -71,10 +71,10 @@ class INotify(object):
         descriptor or raises an OSError on failure.
 
         Args:
-            path (str or bytes) / (python2: unicode or str): The path to watch.
-                If str in python3 or unicode in python2, will be encoded with
+            path (py3 str or bytes, py2 unicode or str): The path to watch.
+                If ``str`` in python3 or ``unicode`` in python2, will be encoded with
                 the filesystem encoding before being passed to
-                inotify_add_watch().
+                ``inotify_add_watch()``.
 
             mask (int): The mask of events to watch for. Can be constructed by
                 bitwise-ORing :class:`~inotify_simple.flags` together.
