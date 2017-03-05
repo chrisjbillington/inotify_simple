@@ -8,7 +8,7 @@
 import os
 from distutils.core import setup
 
-__version__ = '1.0.4'
+__version__ = '1.1.0'
 
 DESCRIPTION = \
     """A simple wrapper around inotify. No fancy bells and whistles, just a

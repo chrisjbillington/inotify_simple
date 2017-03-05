@@ -2,7 +2,7 @@
 
 `inotify_simple` is a simple Python wrapper around
 [inotify](http://man7.org/linux/man-pages/man7/inotify.7.html).
-No fancy bells and whistles, just a literal wrapper with ctypes. Only 96
+No fancy bells and whistles, just a literal wrapper with ctypes. Only 108
 lines of code!
 
 `inotify_init()` is wrapped as a class that does little more than hold the
@@ -11,8 +11,8 @@ available data from the file descriptor and returns events as `namedtuple`
 objects after unpacking them with the `struct` module. `inotify_add_watch()`
 and `inotify_rm_watch()` are wrapped with no changes at all, taking and
 returning watch descriptor integers that calling code is expected to keep
-track of itself, just as one would use inotify from C. Works with Python 2 or
-3.
+track of itself, just as one would use inotify from C. Works with Python 2.7
+or Python >= 3.2.
 
 [View on PyPI](http://pypi.python.org/pypi/inotify_simple) |
 [Fork me on github](https://github.com/chrisjbillington/inotify_simple) |
@@ -24,13 +24,13 @@ track of itself, just as one would use inotify from C. Works with Python 2 or
 to install `inotify_simple`, run:
 
 ```
-$ pip install inotify_simple
+$ pip3 install inotify_simple
 ```
 
 or to install from source:
 
 ```
-$ python setup.py install
+$ python3 setup.py install
 ```
 
 Note:  If on Python < 3.4, you'll need the backported [enum34
