@@ -15,7 +15,13 @@ if sys.version_info.major < 3:
     # For Python 2, we work with bytestrings. If the user passes in a unicode
     # string, it will be encoded with the filesystem encoding before use:
     _fsencoding = sys.getfilesystemencoding()
-    _fsencode = lambda s: s.encode(_fsencoding)
+    try:
+        import pathlib
+    except ImportError:
+        _fsencode = lambda s: s.encode(_fsencoding)
+    else:
+        # If the user passes a Path object it will be converted to bytes:
+        _fsencode = lambda s: bytes(s) if isinstance(s, pathlib.Path) else s.encode(_fsencoding)
     # And we will not decode bytestrings in inotify events, we will simply
     # give the user bytestrings back:
     _fsdecode = lambda s: s
@@ -30,7 +36,13 @@ else:
     # os.fsdecode, which are used by standard-library functions that return
     # paths, and are able to round-trip possibly incorrectly encoded
     # filepaths:
-    _fsencode = os.fsencode
+    if sys.version_info.major == 3 and  sys.version_info.minor < 6:
+        # On Python < 3.6, os.fsencode does not accept pathlike objects, so we
+        # must convert them to strings before encoding with fsencode:
+        import pathlib
+        _fsencode = lambda p: os.fsencode(str(p) if isinstance(p, pathlib.Path) else p)
+    else:
+        _fsencode = os.fsencode
     _fsdecode = os.fsdecode
     _EnumType = enum.IntEnum
 
