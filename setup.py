@@ -8,11 +8,11 @@
 import os
 from distutils.core import setup
 
-__version__ = '1.1.1'
+__version__ = '1.1.2'
 
 DESCRIPTION = \
     """A simple wrapper around inotify. No fancy bells and whistles, just a
-    literal wrapper with ctypes. Only 95 lines of code!
+    literal wrapper with ctypes. Only 118 lines of code!
 """
 
 # Auto generate a __version__ package for the package to import
