@@ -39,8 +39,12 @@ else:
     if sys.version_info.major == 3 and  sys.version_info.minor < 6:
         # On Python < 3.6, os.fsencode does not accept pathlike objects, so we
         # must convert them to strings before encoding with fsencode:
-        import pathlib
-        _fsencode = lambda p: os.fsencode(str(p) if isinstance(p, pathlib.Path) else p)
+        try:
+            import pathlib
+        except ImportError:
+            _fsencode = os.fsencode
+        else:
+            _fsencode = lambda p: os.fsencode(str(p) if isinstance(p, pathlib.Path) else p)
     else:
         _fsencode = os.fsencode
     _fsdecode = os.fsdecode
