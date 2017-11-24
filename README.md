@@ -33,8 +33,10 @@ or to install from source:
 $ python3 setup.py install
 ```
 
-Note:  If on Python < 3.4, you'll need the backported [enum34
-module](https://pypi.python.org/pypi/enum34).
+Note:
+* If on Python < 3.4, you'll need the backported [enum34
+module](https://pypi.python.org/pypi/enum34)
+and the backported [pathlib module](https://pypi.python.org/pypi/pathlib/).
 
 `inotify_simple` is a small amount of code and unlikely to change much in the
 future until inotify itself or Python changes, so you can also just copy and
