@@ -52,21 +52,10 @@ else:
 
 __all__ = ['flags', 'masks', 'parse_events', 'INotify', 'Event']
 
-_libc = ctypes.cdll.LoadLibrary('libc.so.6')
-_libc.__errno_location.restype = ctypes.POINTER(ctypes.c_int)
 
-def _libc_call(function, *args):
-    """Wrapper which raises errors and retries on EINTR."""
-    while True:
-        rc = function(*args)
-        if rc == -1:
-            errno = _libc.__errno_location().contents.value
-            if errno  == EINTR:
-                # retry
-                continue
-            else:
-                raise OSError(errno, os.strerror(errno))
-        return rc
+def _get_libc():
+    _libc = ctypes.cdll.LoadLibrary('libc.so.6')
+    _libc.__errno_location.restype = ctypes.POINTER(ctypes.c_int)
 
 
 class INotify(object):
@@ -78,9 +67,23 @@ class INotify(object):
         #: The inotify file descriptor returned by ``inotify_init()``. You are
         #: free to use it directly with ``os.read`` if you'd prefer not to call
         #: :func:`~inotify_simple.INotify.read` for some reason.
-        self.fd = _libc_call(_libc.inotify_init)
+        self._libc = _get_libc()
+        self.fd = self._libc_call(self._libc.inotify_init)
         self._poller = select.poll()
         self._poller.register(self.fd)
+
+    def _libc_call(fcuntion, *args):
+        """Wrapper which raises errors and retries on EINTR."""
+        while True:
+            rc = function(*args)
+            if rc == -1:
+                errno = self._libc.__errno_location().contents.value
+                if errno  == EINTR:
+                    # retry
+                    continue
+                else:
+                    raise OSError(errno, os.strerror(errno))
+            return rc
 
     def add_watch(self, path, mask):
         """Wrapper around ``inotify_add_watch()``. Returns the watch
@@ -100,14 +103,14 @@ class INotify(object):
             int: watch descriptor"""
         if not isinstance(path, bytes):
             path = _fsencode(path)
-        return _libc_call(_libc.inotify_add_watch, self.fd, path, mask)
+        return self._libc_call(self._libc.inotify_add_watch, self.fd, path, mask)
 
     def rm_watch(self, wd):
         """Wrapper around ``inotify_rm_watch()``. Raises OSError on failure.
 
         Args:
             wd (int): The watch descriptor to remove"""
-        _libc_call(_libc.inotify_rm_watch, self.fd, wd)
+        self._libc_call(self._libc.inotify_rm_watch, self.fd, wd)
 
     def read(self, timeout=None, read_delay=None):
         """Read the inotify file descriptor and return the resulting list of
@@ -237,8 +240,3 @@ class masks(_EnumType):
                    flags.CLOSE_NOWRITE | flags.OPEN | flags.MOVED_FROM |
                    flags.MOVED_TO | flags.DELETE | flags.CREATE | flags.DELETE_SELF |
                    flags.MOVE_SELF)
-
-
-
-
-
