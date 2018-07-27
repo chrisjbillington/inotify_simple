@@ -14,10 +14,10 @@ if 'sdist' in sys.argv:
 import os
 from distutils.core import setup
 
-__version__ = '1.1.7'
+__version__ = '1.1.8'
 
 DESCRIPTION = ("A simple wrapper around inotify. No fancy bells and whistles, " +
-               "just a literal wrapper with ctypes. Only 122 lines of code!")
+               "just a literal wrapper with ctypes. Only 127 lines of code!")
 
 # Auto generate a __version__ package for the package to import
 with open(os.path.join('inotify_simple', '__version__.py'), 'w') as f:

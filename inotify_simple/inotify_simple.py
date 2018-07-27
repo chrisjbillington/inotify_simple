@@ -52,8 +52,13 @@ else:
 
 __all__ = ['flags', 'masks', 'parse_events', 'INotify', 'Event']
 
-_libc = ctypes.cdll.LoadLibrary('libc.so.6')
-_libc.__errno_location.restype = ctypes.POINTER(ctypes.c_int)
+_libc = None
+
+def _ensure_libc_loaded():
+    global _libc
+    if _libc is None:
+        _libc = ctypes.cdll.LoadLibrary('libc.so.6')
+        _libc.__errno_location.restype = ctypes.POINTER(ctypes.c_int)
 
 def _libc_call(function, *args):
     """Wrapper which raises errors and retries on EINTR."""
@@ -78,6 +83,7 @@ class INotify(object):
         #: The inotify file descriptor returned by ``inotify_init()``. You are
         #: free to use it directly with ``os.read`` if you'd prefer not to call
         #: :func:`~inotify_simple.INotify.read` for some reason.
+        _ensure_libc_loaded()
         self.fd = _libc_call(_libc.inotify_init)
         self._poller = select.poll()
         self._poller.register(self.fd)
