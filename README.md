@@ -1,5 +1,7 @@
 # inotify_simple 1.1
 
+Project status: Stable. This project is in active use and is maintained. Lack of repository activity does not imply abandonment: this is a simple project that has met its goals, has no known bugs, and does not require much maintenance to continue functioning. Please report any issues you encounter and I will fix them in a timely manner if they are within the scope of the project.
+
 `inotify_simple` is a simple Python wrapper around
 [inotify](http://man7.org/linux/man-pages/man7/inotify.7.html).
 No fancy bells and whistles, just a literal wrapper with ctypes. Only 122
