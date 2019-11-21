@@ -151,7 +151,9 @@ class INotify(object):
 
     def close(self):
         """Close the inotify file descriptor"""
-        os.close(self.fd)
+        if self.fd >= 0:
+            os.close(self.fd)
+            self.fd = -1
 
     def __enter__(self):
         return self
