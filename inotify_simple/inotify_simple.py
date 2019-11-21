@@ -153,6 +153,9 @@ class INotify(object):
         """Close the inotify file descriptor"""
         os.close(self.fd)
 
+    def fileno(self):
+        return self.fd
+
     def __enter__(self):
         return self
 
