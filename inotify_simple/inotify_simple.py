@@ -155,6 +155,9 @@ class INotify(object):
             os.close(self.fd)
             self.fd = -1
 
+    def fileno(self):
+        return self.fd
+
     def __enter__(self):
         return self
 
