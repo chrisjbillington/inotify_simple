@@ -14,7 +14,7 @@ if 'sdist' in sys.argv:
 import os
 from distutils.core import setup
 
-__version__ = '1.1.8'
+__version__ = '1.2.0'
 
 DESCRIPTION = ("A simple wrapper around inotify. No fancy bells and whistles, " +
                "just a literal wrapper with ctypes. Only 127 lines of code!")

@@ -1,4 +1,4 @@
-# inotify_simple 1.1
+# inotify_simple 1.2
 
 Project status: Stable. This project is in active use and is maintained. Lack of
 repository activity does not imply abandonment: this is a simple project that has met

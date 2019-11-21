@@ -78,8 +78,9 @@ class INotify(object):
     def __init__(self):
         """Object wrapper around ``inotify_init()`` which stores the inotify file
         descriptor. Raises an OSError on failure. :func:`~inotify_simple.INotify.close`
-        should be called when no longer needed. Can be used as a context manager
-        to ensure it is closed."""
+        should be called when no longer needed. Can be used as a context manager to
+        ensure it is closed. This object has a `fileno()` method, and so can be used
+        directly with `select()` or other functions expecting a file-like object."""
         #: The inotify file descriptor returned by ``inotify_init()``. You are
         #: free to use it directly with ``os.read`` if you'd prefer not to call
         #: :func:`~inotify_simple.INotify.read` for some reason.
@@ -150,12 +151,13 @@ class INotify(object):
         return events
 
     def close(self):
-        """Close the inotify file descriptor"""
+        """Close the inotify file descriptor, if not already closed"""
         if self.fd >= 0:
             os.close(self.fd)
             self.fd = -1
 
     def fileno(self):
+        """Return the file number of the underlying inotify file descriptor"""
         return self.fd
 
     def __enter__(self):

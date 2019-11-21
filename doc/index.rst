@@ -12,7 +12,7 @@ inotify_simple |release|
 
 ``inotify_simple`` is a simple Python wrapper around
 `inotify <http://man7.org/linux/man-pages/man7/inotify.7.html>`_.
-No fancy bells and whistles, just a literal wrapper with ctypes. Only 122
+No fancy bells and whistles, just a literal wrapper with ctypes. Only 131
 lines of code!
 
 ``inotify_init()`` is wrapped as a class that does little more than hold the
@@ -48,9 +48,6 @@ or to install from source:
     If on Python < 3.4, you'll need the backported `enum34 module.
     <https://pypi.python.org/pypi/enum34>`_
 
-``inotify_simple`` is a small amount of code and unlikely to change much in the
-future until inotify itself or Python changes, so you can also just copy and
-paste it into your project to avoid the extra dependency with pretty low risk.
 
 ------------
 Introduction
@@ -179,8 +176,7 @@ Module reference
 Full source code
 ----------------
 
-Free to copy and paste into your project subject to the simplified BSD
-license. Presented here for ease of verifying that this wrapper is as sensible
+Presented here for ease of verifying that this wrapper is as sensible
 as it claims to be (comments stripped - see source on github to see comments).
 
 .. literalinclude:: fullsource.py
