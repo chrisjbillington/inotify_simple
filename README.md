@@ -1,10 +1,14 @@
 # inotify_simple 1.1
 
-Project status: Stable. This project is in active use and is maintained. Lack of repository activity does not imply abandonment: this is a simple project that has met its goals, has no known bugs, and does not require much maintenance to continue functioning. Please report any issues you encounter and I will fix them in a timely manner if they are within the scope of the project.
+Project status: Stable. This project is in active use and is maintained. Lack of
+repository activity does not imply abandonment: this is a simple project that has met
+its goals, has no known bugs, and does not require much maintenance to continue
+functioning. Please report any issues you encounter and I will fix them in a timely
+manner if they are within the scope of the project.
 
 `inotify_simple` is a simple Python wrapper around
 [inotify](http://man7.org/linux/man-pages/man7/inotify.7.html).
-No fancy bells and whistles, just a literal wrapper with ctypes. Only 122
+No fancy bells and whistles, just a literal wrapper with ctypes. Only 131
 lines of code!
 
 `inotify_init()` is wrapped as a class that does little more than hold the
@@ -37,10 +41,6 @@ $ python3 setup.py install
 
 Note:  If on Python < 3.4, you'll need the backported [enum34
 module](https://pypi.python.org/pypi/enum34).
-
-`inotify_simple` is a small amount of code and unlikely to change much in the
-future until inotify itself or Python changes, so you can also just copy and
-paste it into your project to avoid the extra dependency with pretty low risk.
 
 ## Introduction
 

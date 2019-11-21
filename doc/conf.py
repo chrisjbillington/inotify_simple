@@ -12,7 +12,7 @@ with open('../setup.py') as f:
 
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinxcontrib.napoleon',
+    'sphinx.ext.napoleon',
 ]
 
 master_doc = 'index'
