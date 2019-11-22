@@ -6,15 +6,16 @@
 #     python setup.py register
 
 import sys
+import io
 if 'sdist' in sys.argv:
     import pypandoc
     with open('README', 'w') as f:
-        f.write(pypandoc.convert('README.md', 'rst', format='markdown'))
+        f.write(pypandoc.convert_file('README.md', 'rst', format='markdown'))
 
 import os
 from distutils.core import setup
 
-__version__ = '1.2.0'
+__version__ = '1.2.1'
 
 DESCRIPTION = ("A simple wrapper around inotify. No fancy bells and whistles, " +
                "just a literal wrapper with ctypes. Only 127 lines of code!")
@@ -26,7 +27,7 @@ with open(os.path.join('inotify_simple', '__version__.py'), 'w') as f:
 setup(name='inotify_simple',
       version=__version__,
       description=DESCRIPTION,
-      long_description=open('README').read(),
+      long_description=io.open('README', encoding='utf8').read(),
       author='Chris Billington',
       author_email='chrisjbillington@gmail.com',
       url='https://github.com/chrisjbillington/inotify_simple',
