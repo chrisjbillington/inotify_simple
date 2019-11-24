@@ -20,8 +20,8 @@ os.system('rm test.txt')
 # DELETE event for the directory
 os.system('rmdir foo')
 os.chdir('/tmp')
-# DELETE_SELF on the original directory. # Also generates an IGNORED event
-# indicating the watch was removed.
+# DELETE_SELF on the original directory. Also generates an IGNORED event indicating the
+# watch was removed.
 os.system('rmdir inotify_test')
 
 # And see the corresponding events:

@@ -1,0 +1,220 @@
+from sys import version_info, getfilesystemencoding
+from os import strerror, read
+from enum import Enum, IntEnum
+from collections import namedtuple
+from struct import unpack_from, calcsize
+from select import poll
+from time import sleep
+from ctypes import cdll, get_errno, c_int
+from errno import EINTR
+from termios import FIONREAD
+from fcntl import ioctl
+from io import FileIO
+from warnings import warn
+
+PY2 = version_info.major < 3
+if PY2:
+    fsencode = lambda s: s if isinstance(s, str) else s.encode(getfilesystemencoding())
+    # In 32-bit Python < 3 the inotify constants don't fit in an IntEnum:
+    IntEnum = type('IntEnum', (long, Enum), {})
+else:
+    from os import fsencode, fsdecode
+
+
+__version__ = '1.3.0'
+
+__all__ = ['Event', 'INotify', 'flags', 'masks']
+
+_libc = None
+
+
+def _libc_call(function, *args):
+    """Wrapper which raises errors and retries on EINTR."""
+    while True:
+        rc = function(*args)
+        if rc != -1:
+            return rc
+        errno = get_errno()
+        if errno != EINTR:
+            raise OSError(errno, strerror(errno))
+
+
+#: A ``namedtuple`` (wd, mask, cookie, name) for an inotify event. On Python 3 the name
+# field is a ``str`` decoded with ``os.fsdecode()``, on Python 2 it is ``bytes``.
+Event = namedtuple('Event', ['wd', 'mask', 'cookie', 'name'])
+
+_EVENT_FMT = 'iIII'
+_EVENT_SIZE = calcsize(_EVENT_FMT)
+
+CLOEXEC = 0o2000000
+NONBLOCK = 0o0004000
+
+class INotify(FileIO):
+    def __init__(self, inheritable=False, nonblocking=False):
+        """File-like object wrapping ``inotify_init1()``. Raises an OSError on failure.
+        :func:`~inotify_simple.INotify.close` should be called when no longer needed.
+        Can be used as a context manager to ensure it is closed, and can be used
+        directly by functions expecting a file-like object, such as ``select``. For use
+        with functions requiring a filedescriptor such as ``os.read``,
+        :func:`~inotify_simple.INotify.fileno()` can be used to obtain the
+        filedescriptor method such that it can be used directly with ``select()`` or
+        other functions expecting a file-like object, or the file descriptor returned by
+        :func:`~inotify_simple.INotify.fileno()`.
+
+        Args:
+            inheritable (bool): whether the inotify file descriptor will be inherited by
+                child processes. The default,``False``, corresponds to passing the
+                ``IN_CLOEXEC`` flag to ``inotify_init1()``. Setting this flag when
+                opening filedescriptors is the default behaviour of Python standard
+                library functions since PEP 446.
+
+            nonblocking (bool): whether to open the inotify file descriptor in
+                nonblocking mode, corresponding to passing the ``IN_NONBLOCK`` flag to
+                ``inotify_init1()``. This flag has no effect on the behaviour of
+                :func:`~inotify_simple.INotify.read`, which uses ``poll()`` to control
+                blocking behaviour according to the given timeout, but will cause other
+                reads of the file descriptor to raise BlockingIOError if no data is
+                available."""
+        global _libc; _libc = _libc or cdll.LoadLibrary('libc.so.6')
+        flags = (not inheritable) * CLOEXEC | bool(nonblocking) * NONBLOCK 
+        FileIO.__init__(self, _libc_call(_libc.inotify_init1, flags), mode='rb')
+        self._poller = poll()
+        self._poller.register(self.fileno())
+
+    def add_watch(self, path, mask):
+        """Wrapper around ``inotify_add_watch()``. Returns the watch
+        descriptor or raises an OSError on failure.
+
+        Args:
+            path (str, bytes, or PathLike): The path to watch. Will be encoded with
+                ``os.fsencode()`` before being passed to ``inotify_add_watch()``.
+
+            mask (int): The mask of events to watch for. Can be constructed by
+                bitwise-ORing :class:`~inotify_simple.flags` together.
+
+        Returns:
+            int: watch descriptor"""
+        # Explicit conversion of Path to str required on Python < 3.6
+        path = str(path) if hasattr(path, 'parts') else path
+        return _libc_call(_libc.inotify_add_watch, self.fileno(), fsencode(path), mask)
+
+    def rm_watch(self, wd):
+        """Wrapper around ``inotify_rm_watch()``. Raises OSError on failure.
+
+        Args:
+            wd (int): The watch descriptor to remove"""
+        _libc_call(_libc.inotify_rm_watch, self.fileno(), wd)
+
+    def read(self, timeout=None, read_delay=None):
+        """Read the inotify file descriptor and return the resulting
+        :attr:`~inotify_simple.Event` namedtuples (wd, mask, cookie, name).
+
+        Args:
+            timeout (int): The time in milliseconds to wait for events if there are
+                none. If negative or ``None``, block until there are events. If zero,
+                return immediately if there are no events to be read.
+
+            read_delay (int): The time in milliseconds to wait after the first event
+                arrives before reading the buffer. This allows further events to
+                accumulate before reading, which allows the kernel to coalesce like
+                events and can decrease the number of events the application needs to
+                process. However, this also increases the risk that the event queue will
+                overflow due to not being emptied fast enough.
+
+        Returns:
+            generator: generator producing :attr:`~inotify_simple.Event` namedtuples
+
+        Note:
+            If the same inotify file descriptor is being read by multiple threads
+            simultaneously, there is a race condition such that this method may attempt
+            to read the file descriptor when no data is available. This will either
+            block until more events arrive (regardless of the requested timeout), or in
+            the case that the :func:`~inotify_simple.INotify` object was instantiated
+            with``nonblocking=True``, will raise ``BlockingIOError``.
+        """
+        if self._poller.poll(timeout):
+            if read_delay is not None:
+                sleep(read_delay / 1000.0)
+            bytes_avail = c_int()
+            ioctl(self, FIONREAD, bytes_avail)
+            for event in unpack_events(read(self.fileno(), bytes_avail.value)):
+                yield event
+
+    @property
+    def fd(self):
+        """Deprecated. Use :func:`~inotify_simple.INotify.fileno()` instead."""
+        warn("INotify.fd is deprecated. Use INotify.fileno()", DeprecationWarning)
+        return self.fileno()
+
+
+def unpack_events(data):
+    """Unpack data read from an inotify file descriptor into 
+    :attr:`~inotify_simple.Event` namedtuples (wd, mask, cookie, name). This function
+    can be used if you have decided to call ``os.read()`` on the inotify file descriptor
+    yourself rather than calling :func:`~inotify_simple.INotify.read`.
+
+    Args:
+        data (bytes): A bytestring as read from an inotify file descriptor.
+        
+    Returns:
+        generator: generator producing :attr:`~inotify_simple.Event` namedtuples"""
+    pos = 0
+    while pos < len(data):
+        wd, mask, cookie, namesize = unpack_from(_EVENT_FMT, data, pos)
+        pos += _EVENT_SIZE + namesize
+        name = data[pos - namesize : pos].split(b'\x00', 1)[0]
+        yield Event(wd, mask, cookie, name if PY2 else fsdecode(name))
+
+
+def parse_events(data):
+    """Deprecated. Use :func:`~inotify_simple.unpack_events`"""
+    warn("parse_events() is deprecated. Use unpack_events()", DeprecationWarning)
+    return unpack_events(data)
+
+
+class flags(IntEnum):
+    """Inotify flags as defined in ``inotify.h`` but with ``IN_`` prefix omitted.
+    Includes a convenience method :func:`~inotify_simple.flags.from_mask` for extracting
+    flags from a mask."""
+    ACCESS = 0x00000001  #: File was accessed
+    MODIFY = 0x00000002  #: File was modified
+    ATTRIB = 0x00000004  #: Metadata changed
+    CLOSE_WRITE = 0x00000008  #: Writable file was closed
+    CLOSE_NOWRITE = 0x00000010  #: Unwritable file closed
+    OPEN = 0x00000020  #: File was opened
+    MOVED_FROM = 0x00000040  #: File was moved from X
+    MOVED_TO = 0x00000080  #: File was moved to Y
+    CREATE = 0x00000100  #: Subfile was created
+    DELETE = 0x00000200  #: Subfile was deleted
+    DELETE_SELF = 0x00000400  #: Self was deleted
+    MOVE_SELF = 0x00000800  #: Self was moved
+
+    UNMOUNT = 0x00002000  #: Backing fs was unmounted
+    Q_OVERFLOW = 0x00004000  #: Event queue overflowed
+    IGNORED = 0x00008000  #: File was ignored
+
+    ONLYDIR = 0x01000000  #: only watch the path if it is a directory
+    DONT_FOLLOW = 0x02000000  #: don't follow a sym link
+    EXCL_UNLINK = 0x04000000  #: exclude events on unlinked objects
+    MASK_ADD = 0x20000000  #: add to the mask of an already existing watch
+    ISDIR = 0x40000000  #: event occurred against dir
+    ONESHOT = 0x80000000  #: only send event once
+
+    @classmethod
+    def from_mask(cls, mask):
+        """Convenience method that returns a list of every flag in a mask."""
+        return [flag for flag in cls.__members__.values() if flag & mask]
+
+
+class masks(IntEnum):
+    """Convenience masks as defined in ``inotify.h`` but with ``IN_`` prefix omitted."""
+    #: helper event mask equal to ``flags.CLOSE_WRITE | flags.CLOSE_NOWRITE``
+    CLOSE = flags.CLOSE_WRITE | flags.CLOSE_NOWRITE
+    #: helper event mask equal to ``flags.MOVED_FROM | flags.MOVED_TO``
+    MOVE = flags.MOVED_FROM | flags.MOVED_TO
+
+    #: bitwise-OR of all the events that can be passed to
+    #: :func:`~inotify_simple.INotify.add_watch`
+    ALL_EVENTS  = (flags.ACCESS | flags.MODIFY | flags.ATTRIB | flags.CLOSE_WRITE |
+        flags.CLOSE_NOWRITE | flags.OPEN | flags.MOVED_FROM | flags.MOVED_TO | 
+        flags.CREATE | flags.DELETE| flags.DELETE_SELF | flags.MOVE_SELF)

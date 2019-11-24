@@ -12,17 +12,16 @@ inotify_simple |release|
 
 ``inotify_simple`` is a simple Python wrapper around
 `inotify <http://man7.org/linux/man-pages/man7/inotify.7.html>`_.
-No fancy bells and whistles, just a literal wrapper with ctypes. Only 131
+No fancy bells and whistles, just a literal wrapper with ctypes. Under 100
 lines of code!
 
-``inotify_init()`` is wrapped as a class that does little more than hold the
-resulting inotify file descriptor. A ``read()`` method is provided which reads
-available data from the file descriptor and returns events as a list of
-``namedtuple`` objects after unpacking them with the ``struct`` module.
-``inotify_add_watch()`` and ``inotify_rm_watch()`` are wrapped with no changes
-at all, taking and returning watch descriptor integers that calling code is
-expected to keep track of itself, just as one would use inotify from C. Works
-with Python 2.7 or Python >= 3.2.
+``inotify_init1()`` is wrapped as a file-like object, ``INotify()``, holding the inotify
+file descriptor. ``INotify.read()`` reads available data from the file descriptor and
+returns events as ``namedtuple`` objects after unpacking them with the ``struct``
+module. ``inotify_add_watch()`` and ``inotify_rm_watch()`` are wrapped with no changes
+at all, taking and returning watch descriptor integers that calling code is expected to
+keep track of itself, just as one would use ``inotify`` from C. Works with Python 2.7
+and Python >= 3.2.
 
 `View on PyPI <http://pypi.python.org/pypi/inotify_simple>`_
 | `Fork me on GitHub <https://github.com/chrisjbillington/inotify_simple>`_
@@ -47,7 +46,6 @@ or to install from source:
 .. note::
     If on Python < 3.4, you'll need the backported `enum34 module.
     <https://pypi.python.org/pypi/enum34>`_
-
 
 ------------
 Introduction
@@ -107,21 +105,21 @@ Example usage
     :name: output
 
     $ python example.py
-    Event(wd=1, mask=1073742080, cookie=0, name=u'foo')
+    Event(wd=1, mask=1073742080, cookie=0, name='foo')
         flags.CREATE
         flags.ISDIR
-    Event(wd=1, mask=256, cookie=0, name=u'test.txt')
+    Event(wd=1, mask=256, cookie=0, name='test.txt')
         flags.CREATE
-    Event(wd=1, mask=2, cookie=0, name=u'test.txt')
+    Event(wd=1, mask=2, cookie=0, name='test.txt')
         flags.MODIFY
-    Event(wd=1, mask=512, cookie=0, name=u'test.txt')
+    Event(wd=1, mask=512, cookie=0, name='test.txt')
         flags.DELETE
-    Event(wd=1, mask=1073742336, cookie=0, name=u'foo')
+    Event(wd=1, mask=1073742336, cookie=0, name='foo')
         flags.DELETE
         flags.ISDIR
-    Event(wd=1, mask=1024, cookie=0, name=u'')
+    Event(wd=1, mask=1024, cookie=0, name='')
         flags.DELETE_SELF
-    Event(wd=1, mask=32768, cookie=0, name=u'')
+    Event(wd=1, mask=32768, cookie=0, name='')
         flags.IGNORED
 
 Note that the flags, since they are defined with an ``enum.IntEnum``, print as
@@ -133,44 +131,28 @@ useful for debugging which events are coming through, but performance critical
 code should generally bitwise-AND masks with flags of interest itself so as to
 not do unnecessary checks.
 
-.. note::
-    On Python 2, you should use ``inotify_simple`` with bytestrings (``str``).
-    You *can* pass ``unicode`` strings to
-    :func:`~inotify_simple.INotify.add_watch` if you like, and if you do they
-    will be encoded with the filesystem encoding before being passed to the
-    underlying C API. However, filesystems do not enforce that filepaths must
-    actually use the declared filesystem encoding, and so some filepaths may
-    not even be valid UTF8 or whatever your filesystem encoding is. Whilst the
-    encoding that :func:`~inotify_simple.INotify.add_watch` does will work
-    fine, your own code's decoding prior to that may break for some filepaths.
-    If you want your code to work with all filepaths, resist the temptation to
-    guess the encoding, and keep your paths as bytestrings. In Python 2,
-    :attr:`~inotify_simple.Event` namedtuples do not decode the 'name' field -
-    it is left as a bytestring.
-
-    Python 3.2 solved this problem with ``os.fsdecode()``, ``os.fsdecode()``,
-    which use the ``surrogateescape`` error handler, allowing incorrectly
-    encoded filepaths to survive the round trip of decoding and encoding
-    unchanged. So when using ``inotify_simple`` with Python 3, use ``str``
-    filepaths.
-
 ----------------
 Module reference
 ----------------
 
-
 .. autoclass:: inotify_simple.INotify
-    :members:
+    :show-inheritance:
+    :members: __init__, add_watch, rm_watch, read, close, fileno, fd
 
 .. autoclass:: inotify_simple.Event
+    :show-inheritance:
+    :members: wd, mask, cookie, name
 
 .. autofunction:: inotify_simple.parse_events
+
+.. autofunction:: inotify_simple.unpack_events
 
 .. autoclass:: inotify_simple.flags
     :members:
 
 .. autoclass:: inotify_simple.masks
     :members:
+
 
 ----------------
 Full source code
