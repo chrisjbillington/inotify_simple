@@ -17,6 +17,7 @@ version = __version__
 release = '.'.join(__version__.split('.')[:-1])
 
 autodoc_member_order = 'bysource'
+autoclass_content = 'both'
 
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 

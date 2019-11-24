@@ -23,7 +23,7 @@ else:
 
 __version__ = '1.3.0'
 
-__all__ = ['Event', 'INotify', 'flags', 'masks']
+__all__ = ['Event', 'INotify', 'flags', 'masks', 'parse_events', 'unpack_events']
 
 _libc = None
 
@@ -49,17 +49,15 @@ _EVENT_SIZE = calcsize(_EVENT_FMT)
 CLOEXEC = 0o2000000
 NONBLOCK = 0o0004000
 
+
 class INotify(FileIO):
     def __init__(self, inheritable=False, nonblocking=False):
-        """File-like object wrapping ``inotify_init1()``. Raises an OSError on failure.
+        """File-like object wrapping ``inotify_init1()``. Raises ``OSError`` on failure.
         :func:`~inotify_simple.INotify.close` should be called when no longer needed.
         Can be used as a context manager to ensure it is closed, and can be used
-        directly by functions expecting a file-like object, such as ``select``. For use
-        with functions requiring a filedescriptor such as ``os.read``,
-        :func:`~inotify_simple.INotify.fileno()` can be used to obtain the
-        filedescriptor method such that it can be used directly with ``select()`` or
-        other functions expecting a file-like object, or the file descriptor returned by
-        :func:`~inotify_simple.INotify.fileno()`.
+        directly by functions expecting a file-like object, such as ``select``, or with
+        functions expecting a file descriptor via
+        :func:`~inotify_simple.INotify.fileno`.
 
         Args:
             inheritable (bool): whether the inotify file descriptor will be inherited by
@@ -70,11 +68,12 @@ class INotify(FileIO):
 
             nonblocking (bool): whether to open the inotify file descriptor in
                 nonblocking mode, corresponding to passing the ``IN_NONBLOCK`` flag to
-                ``inotify_init1()``. This flag has no effect on the behaviour of
+                ``inotify_init1()``. This does not affect the normal behaviour of
                 :func:`~inotify_simple.INotify.read`, which uses ``poll()`` to control
                 blocking behaviour according to the given timeout, but will cause other
-                reads of the file descriptor to raise BlockingIOError if no data is
-                available."""
+                reads of the file descriptor (for example if the application reads data
+                manually with ``os.read(fd)``) to raise ``BlockingIOError`` if no data
+                is available."""
         global _libc; _libc = _libc or cdll.LoadLibrary('libc.so.6')
         flags = (not inheritable) * CLOEXEC | bool(nonblocking) * NONBLOCK 
         FileIO.__init__(self, _libc_call(_libc.inotify_init1, flags), mode='rb')
@@ -83,7 +82,7 @@ class INotify(FileIO):
 
     def add_watch(self, path, mask):
         """Wrapper around ``inotify_add_watch()``. Returns the watch
-        descriptor or raises an OSError on failure.
+        descriptor or raises an ``OSError`` on failure.
 
         Args:
             path (str, bytes, or PathLike): The path to watch. Will be encoded with
@@ -99,13 +98,13 @@ class INotify(FileIO):
         return _libc_call(_libc.inotify_add_watch, self.fileno(), fsencode(path), mask)
 
     def rm_watch(self, wd):
-        """Wrapper around ``inotify_rm_watch()``. Raises OSError on failure.
+        """Wrapper around ``inotify_rm_watch()``. Raises ``OSError`` on failure.
 
         Args:
             wd (int): The watch descriptor to remove"""
         _libc_call(_libc.inotify_rm_watch, self.fileno(), wd)
 
-    def read(self, timeout=None, read_delay=None):
+    def read_events(self, timeout=None, read_delay=None):
         """Read the inotify file descriptor and return the resulting
         :attr:`~inotify_simple.Event` namedtuples (wd, mask, cookie, name).
 
@@ -114,9 +113,10 @@ class INotify(FileIO):
                 none. If negative or ``None``, block until there are events. If zero,
                 return immediately if there are no events to be read.
 
-            read_delay (int): The time in milliseconds to wait after the first event
-                arrives before reading the buffer. This allows further events to
-                accumulate before reading, which allows the kernel to coalesce like
+            read_delay (int): If there are no events immediately available for reading,
+                then this is the time in milliseconds to wait after the first event
+                arrives before reading the file descriptor. This allows further events
+                to accumulate before reading, which allows the kernel to coalesce like
                 events and can decrease the number of events the application needs to
                 process. However, this also increases the risk that the event queue will
                 overflow due to not being emptied fast enough.
@@ -124,34 +124,56 @@ class INotify(FileIO):
         Returns:
             generator: generator producing :attr:`~inotify_simple.Event` namedtuples
 
-        Note:
+        .. warning::
             If the same inotify file descriptor is being read by multiple threads
-            simultaneously, there is a race condition such that this method may attempt
-            to read the file descriptor when no data is available. This will either
-            block until more events arrive (regardless of the requested timeout), or in
-            the case that the :func:`~inotify_simple.INotify` object was instantiated
-            with``nonblocking=True``, will raise ``BlockingIOError``.
+            simultaneously, this method may attempt to read the file descriptor when no
+            data is available. It may return zero events, or block until more events
+            arrive (regardless of the requested timeout), or in the case that the
+            :func:`~inotify_simple.INotify` object was instantiated with
+            ``nonblocking=True``, raise ``BlockingIOError``.
         """
-        if self._poller.poll(timeout):
+        data = self._readall()
+        if not data and timeout != 0 and self._poller.poll(timeout):
             if read_delay is not None:
                 sleep(read_delay / 1000.0)
-            bytes_avail = c_int()
-            ioctl(self, FIONREAD, bytes_avail)
-            for event in unpack_events(read(self.fileno(), bytes_avail.value)):
-                yield event
+            data = self._readall()
+        return unpack_events(data)
+
+    def read(self, timeout=None, read_delay=None):
+        """Deprecated. Use :func:`~inotify_simple.INotify.read_events` instead. In
+        ``inotify_simple`` 2.0, :func:`~inotify_simple.INotify.read` will correspond to
+        the parent class's read method, ``io.FileIO.read()``, returning raw bytes from
+        the inotify file descriptor."""
+        warn(
+            "INotify.read() is deprecated and in inotify_simple 2.0 will correspond to "
+            + "FileIO.read(), returning raw bytes from the inotify file descriptor.  "
+            + "Use INotify.read_events(). Note that INotify.read_events() returns a "
+            + "generator instead of a list.",
+            DeprecationWarning,
+        )
+        return list(self.read_events(timeout, read_delay))
+
+    def _readall(self):
+        bytes_avail = c_int()
+        ioctl(self, FIONREAD, bytes_avail)
+        return read(self.fileno(), bytes_avail.value)
 
     @property
     def fd(self):
         """Deprecated. Use :func:`~inotify_simple.INotify.fileno()` instead."""
-        warn("INotify.fd is deprecated. Use INotify.fileno()", DeprecationWarning)
+        warn(
+            "INotify.fd is deprecated and will be removed in inotify_simple 2.0. "
+            + "Use INotify.fileno().",
+            DeprecationWarning,
+        )
         return self.fileno()
 
 
 def unpack_events(data):
     """Unpack data read from an inotify file descriptor into 
     :attr:`~inotify_simple.Event` namedtuples (wd, mask, cookie, name). This function
-    can be used if you have decided to call ``os.read()`` on the inotify file descriptor
-    yourself rather than calling :func:`~inotify_simple.INotify.read`.
+    can be used if the application has read raw data from the inotify file
+    descriptor rather than calling :func:`~inotify_simple.INotify.read_events`.
 
     Args:
         data (bytes): A bytestring as read from an inotify file descriptor.
@@ -168,8 +190,13 @@ def unpack_events(data):
 
 def parse_events(data):
     """Deprecated. Use :func:`~inotify_simple.unpack_events`"""
-    warn("parse_events() is deprecated. Use unpack_events()", DeprecationWarning)
-    return unpack_events(data)
+    warn(
+        "parse_events() is deprecated and will be removed in inotify_simple 2.0. "
+        + "Use unpack_events(). Note that unpack_events() returns a generator instead "
+        + "of a list.",
+        DeprecationWarning,
+    )
+    return list(unpack_events(data))
 
 
 class flags(IntEnum):

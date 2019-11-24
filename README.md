@@ -1,22 +1,16 @@
 # inotify_simple 1.3
 
-Project status: Stable. This project is in active use and is maintained. Lack of
-repository activity does not imply abandonment: this is a simple project that has met
-its goals, has no known bugs, and does not require much maintenance to continue
-functioning. Please report any issues you encounter and I will fix them in a timely
-manner if they are within the scope of the project.
-
 `inotify_simple` is a simple Python wrapper around
 [inotify](http://man7.org/linux/man-pages/man7/inotify.7.html).
-No fancy bells and whistles, just a literal wrapper with ctypes. Under 100
+No fancy bells and whistles, just a literal wrapper with ctypes. Only  \~100
 lines of code!
 
 `inotify_init1()` is wrapped as a file-like object, `INotify()`, holding the inotify
-file descriptor. `INotify().read()` reads available data from the file descriptor and
-returns events as `namedtuple` objects after unpacking them with the `struct` module.
-`inotify_add_watch()` and `inotify_rm_watch()` are wrapped with no changes at all,
-taking and returning watch descriptor integers that calling code is expected to keep
-track of itself, just as one would use `inotify` from C. Works with Python 2.7 and
+file descriptor. `INotify().read_events()` reads available data from the file descriptor
+and returns events as `namedtuple` objects after unpacking them with the `struct`
+module. `inotify_add_watch()` and `inotify_rm_watch()` are wrapped with no changes at
+all, taking and returning watch descriptor integers that calling code is expected to
+keep track of itself, just as one would use `inotify` from C. Works with Python 2.7 and
 Python >= 3.2.
 
 [View on PyPI](http://pypi.python.org/pypi/inotify_simple) |
