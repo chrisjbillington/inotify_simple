@@ -10,7 +10,6 @@ from errno import EINTR
 from termios import FIONREAD
 from fcntl import ioctl
 from io import FileIO
-from warnings import warn
 
 PY2 = version_info.major < 3
 if PY2:
@@ -23,7 +22,7 @@ else:
 
 __version__ = '1.3.0'
 
-__all__ = ['Event', 'INotify', 'flags', 'masks', 'parse_events', 'unpack_events']
+__all__ = ['Event', 'INotify', 'flags', 'masks', 'parse_events']
 
 _libc = None
 
@@ -39,8 +38,9 @@ def _libc_call(function, *args):
             raise OSError(errno, strerror(errno))
 
 
-#: A ``namedtuple`` (wd, mask, cookie, name) for an inotify event. On Python 3 the name
-# field is a ``str`` decoded with ``os.fsdecode()``, on Python 2 it is ``bytes``.
+#: A ``namedtuple`` (wd, mask, cookie, name) for an inotify event. On Python 3 the
+#: :attr:`~inotify_simple.Event.name`  field is a ``str`` decoded with
+#: ``os.fsdecode()``, on Python 2 it is ``bytes``.
 Event = namedtuple('Event', ['wd', 'mask', 'cookie', 'name'])
 
 _EVENT_FMT = 'iIII'
@@ -51,6 +51,13 @@ NONBLOCK = 0o0004000
 
 
 class INotify(FileIO):
+
+    #: The inotify file descriptor returned by ``inotify_init()``. You are
+    #: free to use it directly with ``os.read`` if you'd prefer not to call
+    #: :func:`~inotify_simple.INotify.read` for some reason. Also available as
+    #: :func:`~inotify_simple.INotify.fileno`
+    fd = property(FileIO.fileno)
+
     def __init__(self, inheritable=False, nonblocking=False):
         """File-like object wrapping ``inotify_init1()``. Raises ``OSError`` on failure.
         :func:`~inotify_simple.INotify.close` should be called when no longer needed.
@@ -104,7 +111,7 @@ class INotify(FileIO):
             wd (int): The watch descriptor to remove"""
         _libc_call(_libc.inotify_rm_watch, self.fileno(), wd)
 
-    def read_events(self, timeout=None, read_delay=None):
+    def read(self, timeout=None, read_delay=None):
         """Read the inotify file descriptor and return the resulting
         :attr:`~inotify_simple.Event` namedtuples (wd, mask, cookie, name).
 
@@ -137,66 +144,33 @@ class INotify(FileIO):
             if read_delay is not None:
                 sleep(read_delay / 1000.0)
             data = self._readall()
-        return unpack_events(data)
-
-    def read(self, timeout=None, read_delay=None):
-        """Deprecated. Use :func:`~inotify_simple.INotify.read_events` instead. In
-        ``inotify_simple`` 2.0, :func:`~inotify_simple.INotify.read` will correspond to
-        the parent class's read method, ``io.FileIO.read()``, returning raw bytes from
-        the inotify file descriptor."""
-        warn(
-            "INotify.read() is deprecated and in inotify_simple 2.0 will correspond to "
-            + "FileIO.read(), returning raw bytes from the inotify file descriptor.  "
-            + "Use INotify.read_events(). Note that INotify.read_events() returns a "
-            + "generator instead of a list.",
-            DeprecationWarning,
-        )
-        return list(self.read_events(timeout, read_delay))
+        return parse_events(data)
 
     def _readall(self):
         bytes_avail = c_int()
         ioctl(self, FIONREAD, bytes_avail)
         return read(self.fileno(), bytes_avail.value)
 
-    @property
-    def fd(self):
-        """Deprecated. Use :func:`~inotify_simple.INotify.fileno()` instead."""
-        warn(
-            "INotify.fd is deprecated and will be removed in inotify_simple 2.0. "
-            + "Use INotify.fileno().",
-            DeprecationWarning,
-        )
-        return self.fileno()
 
-
-def unpack_events(data):
+def parse_events(data):
     """Unpack data read from an inotify file descriptor into 
     :attr:`~inotify_simple.Event` namedtuples (wd, mask, cookie, name). This function
     can be used if the application has read raw data from the inotify file
-    descriptor rather than calling :func:`~inotify_simple.INotify.read_events`.
+    descriptor rather than calling :func:`~inotify_simple.INotify.read`.
 
     Args:
         data (bytes): A bytestring as read from an inotify file descriptor.
         
     Returns:
-        generator: generator producing :attr:`~inotify_simple.Event` namedtuples"""
+        list: list of :attr:`~inotify_simple.Event` namedtuples"""
     pos = 0
+    events = []
     while pos < len(data):
         wd, mask, cookie, namesize = unpack_from(_EVENT_FMT, data, pos)
         pos += _EVENT_SIZE + namesize
         name = data[pos - namesize : pos].split(b'\x00', 1)[0]
-        yield Event(wd, mask, cookie, name if PY2 else fsdecode(name))
-
-
-def parse_events(data):
-    """Deprecated. Use :func:`~inotify_simple.unpack_events`"""
-    warn(
-        "parse_events() is deprecated and will be removed in inotify_simple 2.0. "
-        + "Use unpack_events(). Note that unpack_events() returns a generator instead "
-        + "of a list.",
-        DeprecationWarning,
-    )
-    return list(unpack_events(data))
+        events.append(Event(wd, mask, cookie, name if PY2 else fsdecode(name)))
+    return events
 
 
 class flags(IntEnum):

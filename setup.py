@@ -15,5 +15,5 @@ setup(name='inotify_simple',
       url='https://github.com/chrisjbillington/inotify_simple',
       license="BSD",
       py_modules=["inotify_simple"],
-      python_requires=">2.7, !=3.0.*, !=3.1.*"
+      python_requires=">=2.7, !=3.0.*, !=3.1.*"
       )

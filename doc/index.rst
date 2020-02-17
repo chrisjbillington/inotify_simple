@@ -16,12 +16,13 @@ No fancy bells and whistles, just a literal wrapper with ctypes. Only ~100
 lines of code!
 
 ``inotify_init1()`` is wrapped as a file-like object, :class:`~inotify_simple.INotify`,
-holding the inotify file descriptor. :func:`~inotify_simple.read_events` reads available
-data from the file descriptor and returns events as :attr:`~inotify_simple.Event`
-namedtuples after unpacking them with the ``struct`` module. ``inotify_add_watch()`` and
-``inotify_rm_watch()`` are wrapped with no changes at all, taking and returning watch
-descriptor integers that calling code is expected to keep track of itself, just as one
-would use inotify from C. Works with Python 2.7 and Python >= 3.2.
+holding the inotify file descriptor. :func:`~~inotify_simple.INotify.read` reads
+available data from the file descriptor and returns events as
+:attr:`~inotify_simple.Event` namedtuples after unpacking them with the ``struct``
+module. ``inotify_add_watch()`` and ``inotify_rm_watch()`` are wrapped with no changes
+at all, taking and returning watch descriptor integers that calling code is expected to
+keep track of itself, just as one would use inotify from C. Works with Python 2.7 and
+Python >= 3.2.
 
 `View on PyPI <http://pypi.python.org/pypi/inotify_simple>`_
 | `Fork me on GitHub <https://github.com/chrisjbillington/inotify_simple>`_
@@ -147,65 +148,17 @@ not do unnecessary checks.
 ..     test = 7
 
 
--------------------------------------------
-Deprecated functions and future development
--------------------------------------------
-
-This release of ``inotify_simple``, 1.3, is backward compatible with previous releases.
-However, there are a number of deprecated functions, which now print warnings, that will
-be removed or change behaviour in ``inotify_simple`` 2.0. The reasons for the changes
-are described below.
-
-``inotify_simple`` 1.3 makes :class:`~inotify_simple.INotify` a subclass of
-``io.FileIO``. As such, the
-:attr:`~inotify_simple.INotify.fd` attribute is no longer needed, as one can use
-:func:`~inotify_simple.INotify.fileno` instead. Furthermore, the
-:func:`~inotify_simple.INotify.read` method shadows the underlying ``io.FileIO.read()``
-method, preventing the subclass from being a true file-like object since
-:func:`~inotify_simple.INotify.read` does not return ``bytes``.
-
-Other general quibbles are that :func:`~inotify_simple.parse_events` is poorly named
-(parsing is not the right word for unpacking data), and that
-:func:`~inotify_simple.INotify.read_events` and :func:`~inotify_simple.parse_events`
-return lists, as opposed to generators.
-
-Therefore in ``inotify_simple 1.3``:
-
-* :attr:`~inotify_simple.INotify.fd` is deprecated. Use
-  :func:`~inotify_simple.INotify.fileno` instead.
-
-* :func:`~inotify_simple.INotify.read` is deprecated. Use
-  :func:`~inotify_simple.INotify.read_events` instead, which returns a generator
-  instead of a list.
-
-* :func:`~inotify_simple.parse_events` is deprecated. Use
-  :func:`~inotify_simple.unpack_events` instead, which returns a generator instead
-  of a list.
-
-In ``inotify_simple`` 2.0, :attr:`~inotify_simple.INotify.fd` and
-:func:`~inotify_simple.parse_events` will be removed, and
-:func:`~inotify_simple.INotify.read` will correspond to ``io.FileIO.read()``.
-
-Since it is relatively simple to maintain support for older Python versions, I do not
-have plans to drop support for the end-of-life Python releases 2.7, 3.2, 3.3, or 3.4 in
-``inotify_simple`` 2.0.
-
-I plan to release ``inotify_simple`` 2.0 at least a year after 1.3, to allow for a
-deprecation period.
-
 ----------------
 Module reference
 ----------------
 
 .. autoclass:: inotify_simple.INotify
     :show-inheritance:
-    :members: add_watch, rm_watch, read_events, read, close, fileno, fd
+    :members: add_watch, rm_watch, read, close, fileno, fd
 
 .. autoclass:: inotify_simple.Event
     :show-inheritance:
     :members: wd, mask, cookie, name
-
-.. autofunction:: inotify_simple.unpack_events
 
 .. autofunction:: inotify_simple.parse_events
 
