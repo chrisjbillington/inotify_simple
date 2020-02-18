@@ -149,7 +149,8 @@ class INotify(FileIO):
     def _readall(self):
         bytes_avail = c_int()
         ioctl(self, FIONREAD, bytes_avail)
-        return read(self.fileno(), bytes_avail.value)
+        if bytes_avail.value:
+            return read(self.fileno(), bytes_avail.value)
 
 
 def parse_events(data):
