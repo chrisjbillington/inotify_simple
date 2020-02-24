@@ -5,7 +5,7 @@ from collections import namedtuple
 from struct import unpack_from, calcsize
 from select import poll
 from time import sleep
-from ctypes import cdll, get_errno, c_int
+from ctypes import CDLL, get_errno, c_int
 from errno import EINTR
 from termios import FIONREAD
 from fcntl import ioctl
@@ -20,7 +20,7 @@ else:
     from os import fsencode, fsdecode
 
 
-__version__ = '1.3.2'
+__version__ = '1.3.3'
 
 __all__ = ['Event', 'INotify', 'flags', 'masks', 'parse_events']
 
@@ -81,7 +81,7 @@ class INotify(FileIO):
                 reads of the file descriptor (for example if the application reads data
                 manually with ``os.read(fd)``) to raise ``BlockingIOError`` if no data
                 is available."""
-        global _libc; _libc = _libc or cdll.LoadLibrary('libc.so.6')
+        global _libc; _libc = _libc or CDLL('libc.so.6', use_errno=True)
         flags = (not inheritable) * CLOEXEC | bool(nonblocking) * NONBLOCK 
         FileIO.__init__(self, _libc_call(_libc.inotify_init1, flags), mode='rb')
         self._poller = poll()
