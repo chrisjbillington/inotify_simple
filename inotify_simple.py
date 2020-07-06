@@ -6,6 +6,7 @@ from struct import unpack_from, calcsize
 from select import poll
 from time import sleep
 from ctypes import CDLL, get_errno, c_int
+from ctypes.util import find_library
 from errno import EINTR
 from termios import FIONREAD
 from fcntl import ioctl
@@ -81,7 +82,7 @@ class INotify(FileIO):
                 reads of the file descriptor (for example if the application reads data
                 manually with ``os.read(fd)``) to raise ``BlockingIOError`` if no data
                 is available."""
-        global _libc; _libc = _libc or CDLL('libc.so.6', use_errno=True)
+        global _libc; _libc = _libc or CDLL(find_library('c'), use_errno=True)
         flags = (not inheritable) * CLOEXEC | bool(nonblocking) * NONBLOCK 
         FileIO.__init__(self, _libc_call(_libc.inotify_init1, flags), mode='rb')
         self._poller = poll()
