@@ -1,5 +1,5 @@
 from sys import version_info, getfilesystemencoding
-from os import strerror, read
+import os
 from enum import Enum, IntEnum
 from collections import namedtuple
 from struct import unpack_from, calcsize
@@ -36,7 +36,7 @@ def _libc_call(function, *args):
             return rc
         errno = get_errno()
         if errno != EINTR:
-            raise OSError(errno, strerror(errno))
+            raise OSError(errno, os.strerror(errno))
 
 
 #: A ``namedtuple`` (wd, mask, cookie, name) for an inotify event. On Python 3 the
@@ -46,9 +46,6 @@ Event = namedtuple('Event', ['wd', 'mask', 'cookie', 'name'])
 
 _EVENT_FMT = 'iIII'
 _EVENT_SIZE = calcsize(_EVENT_FMT)
-
-CLOEXEC = 0o2000000
-NONBLOCK = 0o0004000
 
 
 class INotify(FileIO):
@@ -72,7 +69,9 @@ class INotify(FileIO):
                 child processes. The default,``False``, corresponds to passing the
                 ``IN_CLOEXEC`` flag to ``inotify_init1()``. Setting this flag when
                 opening filedescriptors is the default behaviour of Python standard
-                library functions since PEP 446.
+                library functions since PEP 446. On Python < 3.3, the file descriptor
+                will be inheritable and this argument has no effect, one must instead
+                use fcntl to set FD_CLOEXEC to make it non-inheritable.
 
             nonblocking (bool): whether to open the inotify file descriptor in
                 nonblocking mode, corresponding to passing the ``IN_NONBLOCK`` flag to
@@ -83,7 +82,8 @@ class INotify(FileIO):
                 manually with ``os.read(fd)``) to raise ``BlockingIOError`` if no data
                 is available."""
         global _libc; _libc = _libc or CDLL(find_library('c'), use_errno=True)
-        flags = (not inheritable) * CLOEXEC | bool(nonblocking) * NONBLOCK 
+        O_CLOEXEC = getattr(os, 'O_CLOEXEC', 0) # Only defined in Python 3.3+
+        flags = (not inheritable) * O_CLOEXEC | bool(nonblocking) * os.O_NONBLOCK 
         FileIO.__init__(self, _libc_call(_libc.inotify_init1, flags), mode='rb')
         self._poller = poll()
         self._poller.register(self.fileno())
@@ -152,7 +152,7 @@ class INotify(FileIO):
         ioctl(self, FIONREAD, bytes_avail)
         if not bytes_avail.value:
             return b''
-        return read(self.fileno(), bytes_avail.value)
+        return os.read(self.fileno(), bytes_avail.value)
 
 
 def parse_events(data):
