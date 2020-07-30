@@ -21,7 +21,7 @@ else:
     from os import fsencode, fsdecode
 
 
-__version__ = '1.3.3'
+__version__ = '1.3.4'
 
 __all__ = ['Event', 'INotify', 'flags', 'masks', 'parse_events']
 
