@@ -21,7 +21,7 @@ else:
     from os import fsencode, fsdecode
 
 
-__version__ = '1.3.4'
+__version__ = '1.3.5'
 
 __all__ = ['Event', 'INotify', 'flags', 'masks', 'parse_events']
 
@@ -81,7 +81,11 @@ class INotify(FileIO):
                 reads of the file descriptor (for example if the application reads data
                 manually with ``os.read(fd)``) to raise ``BlockingIOError`` if no data
                 is available."""
-        global _libc; _libc = _libc or CDLL(find_library('c'), use_errno=True)
+        try:
+            libc_so = find_library('c')
+        except RuntimeError: # Python on Synology NASs raises a RuntimeError
+            libc_so = None
+        global _libc; _libc = _libc or CDLL(libc_so or 'libc.so.6', use_errno=True)
         O_CLOEXEC = getattr(os, 'O_CLOEXEC', 0) # Only defined in Python 3.3+
         flags = (not inheritable) * O_CLOEXEC | bool(nonblocking) * os.O_NONBLOCK 
         FileIO.__init__(self, _libc_call(_libc.inotify_init1, flags), mode='rb')
