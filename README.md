@@ -17,6 +17,11 @@ Python >= 3.2.
 [Fork me on github](https://github.com/chrisjbillington/inotify_simple) |
 [Read the docs](http://inotify_simple.readthedocs.org)
 
+## Project status: stable
+
+This project does not require much maintenance
+to continue to to meet its goals. Do not panic if there
+have been no commits in a long time, this is normal.
 
 ## Installation
 
