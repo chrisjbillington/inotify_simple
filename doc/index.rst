@@ -131,6 +131,98 @@ useful for debugging which events are coming through, but performance critical
 code should generally bitwise-AND masks with flags of interest itself so as to
 not do unnecessary checks.
 
+
+---------------
+Tips and tricks
+---------------
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Gracefully exit a blocking :meth:`.read`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is common for an application to block indefinitely on a :meth:`.read` while
+waiting for events to be received. However it can be challenging to manage its
+shutdown.
+
+When used without a timeout, the :meth:`.read` uses :func:`~select.poll` on the
+internal file descriptor only. This call will return if there is an event on one
+of the file descriptors it monitors.
+
+The idea to correctly unblock the :meth:`.read` is to add a file descriptor to be
+processed in addition to the internal descriptor. This new file descriptor will
+only be used to exit the application. Usually a :func:`~os.pipe` is used for
+this purpose.
+
+The `inotify_simple` module is not intended to have such a high-level mechanism.
+But it can be done directly in the user application by wrapping the calls to
+:obj:`.INotify`.
+
+Such a wrapper should:
+
+- Have an :obj:`.INotify` object.
+- Have a :func:`~os.pipe`.
+- Run :func:`~select.select` or :func:`~select.poll` on both previous object
+  descriptors.
+- Retrieve the inotify events by calling :meth:`.read` with ``timeout=0`` (so
+  the underlying :func:`~select.poll` is not called).
+- Send dummy data to the `pipe` when a stop has been requested.
+
+An example wrapper class implementing :obj:`~threading.Thread` can be found
+below:
+
+
+.. code-block:: python
+   :emphasize-lines: 15,18-19,27-29,32-33,38-41,45-47
+
+    import os
+    import select
+    import threading
+
+    from inotify_simple import INotify, masks, flags
+
+    class InotifyThread(threading.Thread):
+        def __init__(self, path):
+            self.__path = path
+
+            # Initialize the parent class
+            threading.Thread.__init__(self)
+
+            # Create an inotify object
+            self.__inotify = INotify()
+
+            # Create a pipe
+            self.__read_fd, write_fd = os.pipe()
+            self.__write = os.fdopen(write_fd, "wb")
+
+        def run(self):
+            # Watch the current directory
+            self.__inotify.add_watch(self.__path, masks.ALL_EVENTS)
+
+            while True:
+                # Wait for inotify events or a write in the pipe
+                rlist, _, _ = select.select(
+                    [self.__inotify.fileno(), self.__read_fd], [], []
+                )
+
+                # Print all inotify events
+                if self.__inotify.fileno() in rlist:
+                    for event in self.__inotify.read(timeout=0):
+                        flags = [f.name for f in flags.from_mask(event.mask)]
+                        print(f"{event} {flags}")
+
+                # Close everything properly if requested
+                if self.__read_fd in rlist:
+                    os.close(self.__read_fd)
+                    self.__inotify.close()
+                    return
+
+        def stop(self):
+            # Request for stop by writing in the pipe
+            if not self.__write.closed:
+                self.__write.write(b"\x00")
+                self.__write.close()
+
+
 .. ------------------
 .. Usage with asyncio
 .. ------------------
