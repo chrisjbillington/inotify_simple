@@ -8,6 +8,7 @@ from inotify_simple import __version__
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
+    'sphinx.ext.intersphinx',
 ]
 
 master_doc = 'index'
@@ -20,6 +21,10 @@ autodoc_member_order = 'bysource'
 autoclass_content = 'both'
 
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3/', None),
+}
 
 if not on_rtd:  # only import and set the theme if we're building docs locally
     import sphinx_rtd_theme
