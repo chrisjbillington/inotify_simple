@@ -26,7 +26,7 @@ Python >= 3.2.
 
 `View on PyPI <http://pypi.python.org/pypi/inotify_simple>`_
 | `Fork me on GitHub <https://github.com/chrisjbillington/inotify_simple>`_
-| `Read the docs <http://inotify_simple.readthedocs.org>`_
+| `Read the docs <http://inotify-simple.readthedocs.org>`_
 
 ------------
 Installation
