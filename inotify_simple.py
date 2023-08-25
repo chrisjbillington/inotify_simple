@@ -196,6 +196,8 @@ class flags(IntEnum):
     DELETE = 0x00000200  #: Subfile was deleted
     DELETE_SELF = 0x00000400  #: Self was deleted
     MOVE_SELF = 0x00000800  #: Self was moved
+    DIR_MOVED_FROM = 0x40000040  #: File was moved from X (IN_MOVED_FROM | IN_ISDIR)
+    DIR_MOVED_TO = 0x40000080  #: File was moved to Y (IN_MOVED_TO | IN_ISDIR)
 
     UNMOUNT = 0x00002000  #: Backing fs was unmounted
     Q_OVERFLOW = 0x00004000  #: Event queue overflowed
@@ -225,4 +227,4 @@ class masks(IntEnum):
     #: :func:`~inotify_simple.INotify.add_watch`
     ALL_EVENTS  = (flags.ACCESS | flags.MODIFY | flags.ATTRIB | flags.CLOSE_WRITE |
         flags.CLOSE_NOWRITE | flags.OPEN | flags.MOVED_FROM | flags.MOVED_TO | 
-        flags.CREATE | flags.DELETE| flags.DELETE_SELF | flags.MOVE_SELF)
+        flags.CREATE | flags.DELETE| flags.DELETE_SELF | flags.MOVE_SELF | flags.DIR_MOVED_FROM | flags.DIR_MOVED_TO)
