@@ -15,7 +15,7 @@ Python >= 3.2.
 
 [View on PyPI](http://pypi.python.org/pypi/inotify_simple) |
 [Fork me on github](https://github.com/chrisjbillington/inotify_simple) |
-[Read the docs](http://inotify-simple.readthedocs.org)
+[Read the docs](http://inotify-simple.readthedocs.io)
 
 ## Project status: stable
 
@@ -117,4 +117,4 @@ which events are coming through, but performance critical code should
 generally bitwise-AND masks with flags of interest itself so as to not do
 unnecessary checks.
 
-[See here](http://inotify-simple.readthedocs.org) for more.
+[See here](http://inotify-simple.readthedocs.io) for more.
