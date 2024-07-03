@@ -7,6 +7,7 @@ import pytest
 
 from inotify_simple import Event, INotify, flags, monotonic
 
+
 # Equivalent of tempfile.TemporaryDirectory for python 2 support:
 @contextmanager
 def tempdir():
@@ -34,7 +35,7 @@ def short_timeout(_cache=[]):
     with tempdir() as tmpdir:
         watcher = INotify()
         watcher.add_watch(tmpdir, flags.CREATE)
-        open(tmpdir + '/foo', 'w').write('')
+        open(tmpdir + "/foo", "w").write("")
         t0 = monotonic()
         assert len(watcher.read(timeout=0)) > 0
         times.append(monotonic() - t0)
@@ -46,16 +47,25 @@ def short_timeout(_cache=[]):
 
 def assert_events_match(events, count, **kwargs):
     keys = set(kwargs.keys())
-    assert keys.issubset(Event._fields), "Invalid kwargs {}; should be a subset of {}".format(keys, Event._fields)
+    assert keys.issubset(
+        Event._fields
+    ), "Invalid kwargs {}; should be a subset of {}".format(keys, Event._fields)
 
     def matches(event):
         return all(getattr(event, k) == v for k, v in kwargs.items())
 
     matching = list(filter(matches, events))
     if count is None or (count > 0 and len(matching) == 0):
-        assert len(matching), "No events matched the predicate {}: {}".format(kwargs, events)
+        assert len(matching), "No events matched the predicate {}: {}".format(
+            kwargs, events
+        )
     else:
-        assert len(matching) == count, "Expected {} events to match the predicate {}, but {} matched: {}".format(count, kwargs, len(matching), events)
+        assert (
+            len(matching) == count
+        ), "Expected {} events to match the predicate {}, but {} matched: {}".format(
+            count, kwargs, len(matching), events
+        )
+
 
 @contextmanager
 def raises_ebadfd():
@@ -64,12 +74,15 @@ def raises_ebadfd():
         yield
     assert exc_info.value.errno == errno.EBADF
 
+
 @contextmanager
-def assert_takes_between(min_time, max_time=float('inf')):
+def assert_takes_between(min_time, max_time=float("inf")):
     t0 = monotonic()
     yield
     duration = monotonic() - t0
-    assert max_time >= duration >= min_time, "Expected duration of {} is not between {} and {}".format(
+    assert (
+        max_time >= duration >= min_time
+    ), "Expected duration of {} is not between {} and {}".format(
         duration,
         round(min_time, 3),
         round(max_time, 3),
@@ -87,5 +100,5 @@ def watcher_and_dir(f, **kwargs):
         try:
             watcher.close()
         except (OSError, IOError) as ex:
-            if 'Bad file descriptor' not in str(ex):
+            if "Bad file descriptor" not in str(ex):
                 raise
