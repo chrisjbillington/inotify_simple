@@ -1,10 +1,12 @@
+import errno
 from sys import version_info, getfilesystemencoding
 import os
 from enum import Enum, IntEnum
 from collections import namedtuple
 from struct import unpack_from, calcsize
 from select import poll
-from time import sleep
+from threading import Lock
+import time
 from ctypes import CDLL, get_errno, c_int
 from ctypes.util import find_library
 from errno import EINTR
@@ -14,10 +16,12 @@ from io import FileIO
 
 PY2 = version_info.major < 3
 if PY2:
+    monotonic = time.time
     fsencode = lambda s: s if isinstance(s, str) else s.encode(getfilesystemencoding())
     # In 32-bit Python < 3 the inotify constants don't fit in an IntEnum:
     IntEnum = type('IntEnum', (long, Enum), {})
 else:
+    monotonic = time.monotonic
     from os import fsencode, fsdecode
 
 
@@ -47,7 +51,6 @@ Event = namedtuple('Event', ['wd', 'mask', 'cookie', 'name'])
 _EVENT_FMT = 'iIII'
 _EVENT_SIZE = calcsize(_EVENT_FMT)
 
-
 class INotify(FileIO):
 
     #: The inotify file descriptor returned by ``inotify_init()``. You are
@@ -56,13 +59,12 @@ class INotify(FileIO):
     #: :func:`~inotify_simple.INotify.fileno`
     fd = property(FileIO.fileno)
 
-    def __init__(self, inheritable=False, nonblocking=False):
+    def __init__(self, inheritable=False, nonblocking=False, closefd=True):
         """File-like object wrapping ``inotify_init1()``. Raises ``OSError`` on failure.
-        :func:`~inotify_simple.INotify.close` should be called when no longer needed.
+
         Can be used as a context manager to ensure it is closed, and can be used
         directly by functions expecting a file-like object, such as ``select``, or with
-        functions expecting a file descriptor via
-        :func:`~inotify_simple.INotify.fileno`.
+        functions expecting a file descriptor via :func:`~inotify_simple.INotify.fileno`.
 
         Args:
             inheritable (bool): whether the inotify file descriptor will be inherited by
@@ -80,17 +82,26 @@ class INotify(FileIO):
                 blocking behaviour according to the given timeout, but will cause other
                 reads of the file descriptor (for example if the application reads data
                 manually with ``os.read(fd)``) to raise ``BlockingIOError`` if no data
-                is available."""
+                is available.
+
+            closefd (bool): Whether to close the underlying file descriptor when this
+                object is garbage collected or when close() is called."""
+
         try:
             libc_so = find_library('c')
         except RuntimeError: # Python on Synology NASs raises a RuntimeError
             libc_so = None
         global _libc; _libc = _libc or CDLL(libc_so or 'libc.so.6', use_errno=True)
-        O_CLOEXEC = getattr(os, 'O_CLOEXEC', 0) # Only defined in Python 3.3+
-        flags = (not inheritable) * O_CLOEXEC | bool(nonblocking) * os.O_NONBLOCK 
-        FileIO.__init__(self, _libc_call(_libc.inotify_init1, flags), mode='rb')
-        self._poller = poll()
-        self._poller.register(self.fileno())
+        O_CLOEXEC = getattr(os, 'O_CLOEXEC', 524288) # Only defined in Python 3.3+
+        flags = (not inheritable) * O_CLOEXEC | bool(nonblocking) * os.O_NONBLOCK
+        fileno = _libc_call(_libc.inotify_init1, flags)
+        super(INotify, self).__init__(fileno, mode='rb', closefd=closefd)
+
+        # If supported, disable inheritability across fork(), not just exec via CLOEXEC:
+        if not inheritable and hasattr(os, 'set_inheritable'):
+            os.set_inheritable(fileno, False)
+        self._read_lock = Lock()
+        self._poller = None
 
     def add_watch(self, path, mask):
         """Wrapper around ``inotify_add_watch()``. Returns the watch
@@ -134,29 +145,63 @@ class INotify(FileIO):
                 overflow due to not being emptied fast enough.
 
         Returns:
-            generator: generator producing :attr:`~inotify_simple.Event` namedtuples
+            list: A list of :attr:`~inotify_simple.Event` namedtuples
 
-        .. warning::
-            If the same inotify file descriptor is being read by multiple threads
-            simultaneously, this method may attempt to read the file descriptor when no
-            data is available. It may return zero events, or block until more events
-            arrive (regardless of the requested timeout), or in the case that the
-            :func:`~inotify_simple.INotify` object was instantiated with
-            ``nonblocking=True``, raise ``BlockingIOError``.
+        .. note::
+            Like other blocking reads on non-file objects (e.g. pipes), closing an
+            `:func:`~inotify_simple.INotify` object while another thread is calling
+            ``read()`` with a timeout of ``None`` is not guaranteed to unblock the
+            blocked ``read()``.
         """
-        data = self._readall()
-        if not data and timeout != 0 and self._poller.poll(timeout):
+
+        if timeout is None:
+            if not self._read_lock.acquire():
+                return []
+        else:
+            t0 = monotonic()
+            if not self._read_lock.acquire(int(round(timeout / 1000.0))):
+                return []
+            timeout -= (round(monotonic() - t0) * 1000)
+        try:
+            # Cache the poller on the object
+            if self._poller is None:
+                self._poller = poll()
+                self._poller.register(self.fileno())
+
+            # If timeout is None, poll until events arrive (poll() will never return an empty list):
+            if timeout is None:
+                self._poller.poll()
+            # Poll for the remaining timeout, if any. If we've used up the remaining timeout, poll once anyway:
+            elif not self._poller.poll(max(timeout, 0)):
+                return []
+            # If events have arrived but we want to wait for additional events to be coalesced by the kernel, wait for
+            # some additional time.
             if read_delay is not None:
-                sleep(read_delay / 1000.0)
-            data = self._readall()
-        return parse_events(data)
+                time.sleep(read_delay / 1000.0)
+            return self._readall()
+        finally:
+            self._read_lock.release()
 
     def _readall(self):
         bytes_avail = c_int()
         ioctl(self, FIONREAD, bytes_avail)
-        if not bytes_avail.value:
-            return b''
-        return os.read(self.fileno(), bytes_avail.value)
+        value_to_read = bytes_avail.value
+        if value_to_read == 0 and not self.closed:
+            # If there isn't anything to read, it's probably a race condition/bug, *except* in the case of a closed
+            # underlying file descriptor, in which case we should proceed and raise an error from the call to read().
+            try:
+                os.fstat(self.fileno())
+                raise ValueError('Bug: read will fail {}'.format(self.closed))
+            except (OSError, IOError) as ex:  # IOError included for python 2 compatibility
+                if ex.errno != errno.EBADF:
+                    raise
+                value_to_read = 1
+            except ValueError as ex:
+                if 'I/O operation on closed file' not in str(ex):
+                    raise
+                value_to_read = 1
+
+        return parse_events(super(FileIO, self).read(value_to_read))
 
 
 def parse_events(data):
@@ -169,7 +214,7 @@ def parse_events(data):
         data (bytes): A bytestring as read from an inotify file descriptor.
         
     Returns:
-        list: list of :attr:`~inotify_simple.Event` namedtuples"""
+        list: A list of :attr:`~inotify_simple.Event` namedtuples"""
     pos = 0
     events = []
     while pos < len(data):
