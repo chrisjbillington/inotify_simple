@@ -1,5 +1,7 @@
 import errno
 import shutil
+import subprocess
+import warnings
 from contextlib import contextmanager
 from tempfile import mkdtemp
 
@@ -102,3 +104,27 @@ def watcher_and_dir(f, **kwargs):
         except (OSError, IOError) as ex:
             if "Bad file descriptor" not in str(ex):
                 raise
+
+
+def try_to_increase_watches(_cache=[]):
+    if not _cache:
+        try:
+            subprocess.check_call(("sysctl", "fs.inotify.max_user_watches=524288"))
+        except subprocess.CalledProcessError:
+            warnings.warn(
+                "Could not increase max user watches; test may fail with overflow"
+            )
+        _cache.append(1)
+
+
+# Ugly backport of multiprocessing.cpu_count() to support python 2:
+def cpu_count(_cache=[]):
+    if not _cache:
+        found = []
+        for line in open("/proc/cpuinfo", "r").readlines():
+
+            parts = line.split()
+            if parts and parts[0].lower() == "processor":
+                found.append(int(parts[-1]))
+        _cache.append(max(found))
+    return _cache[0]

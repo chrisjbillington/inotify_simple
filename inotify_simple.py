@@ -4,7 +4,6 @@ import os
 from enum import Enum, IntEnum
 from collections import namedtuple
 from struct import unpack_from, calcsize
-from select import poll
 from threading import Lock
 import time
 from ctypes import CDLL, get_errno, c_int
@@ -165,6 +164,10 @@ class INotify(FileIO):
         try:
             # Cache the poller on the object
             if self._poller is None:
+                # Runtime import to allow this module to remain partially functional on OSes or pythons where poll()
+                # is not available.
+                from select import poll
+
                 self._poller = poll()
                 self._poller.register(self.fileno())
 
@@ -175,7 +178,7 @@ class INotify(FileIO):
             elif not self._poller.poll(max(timeout, 0)):
                 return []
             # If events have arrived but we want to wait for additional events to be coalesced by the kernel, wait for
-            # some additional time.
+            # some additional time:
             if read_delay is not None:
                 time.sleep(read_delay / 1000.0)
             return self._readall()
@@ -188,7 +191,7 @@ class INotify(FileIO):
         value_to_read = bytes_avail.value
         if value_to_read == 0 and not self.closed:
             # If there isn't anything to read, it's probably a race condition/bug, *except* in the case of a closed
-            # underlying file descriptor, in which case we should proceed and raise an error from the call to read().
+            # underlying file descriptor, in which case we should proceed and raise an error from the call to read():
             try:
                 os.fstat(self.fileno())
                 raise ValueError('Bug: read will fail {}'.format(self.closed))

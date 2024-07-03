@@ -1,4 +1,6 @@
 import os
+import warnings
+from time import sleep
 
 import pytest
 
@@ -9,8 +11,15 @@ from tests import (
     short_timeout,
     assert_takes_between,
     raises_ebadfd,
+    try_to_increase_watches,
+    cpu_count,
 )
-from threading import Timer
+from threading import Timer, Event, Thread, current_thread
+
+try:
+    from queue import Queue
+except ImportError:
+    from Queue import Queue
 
 # NB these tests may flake. That is somewhat the cost of doing business: the point of these tests is to validate
 # timings in the presence of concurrency and indeterminate load conditions. If flakes cause problems here, consider:
@@ -61,3 +70,92 @@ def test_close_while_waiting(read_first, raw_close):
                 watcher.read(timeout=1000)
         finally:
             timer.cancel()
+
+
+def generate_changes(basedir, queue, done):
+    created = 0
+    while not done.is_set():
+        os.mkdir("{}/{}.temp".format(basedir, created))
+        created += 1
+    queue.put_nowait((current_thread().ident, created))
+
+
+def read_changes(watcher, wait_in_poll, queue, done):
+    consecutive_empty_reads = 0
+    finished = False
+    ident = current_thread().ident
+    timeout = INTERVAL_SECONDS * 1000 if wait_in_poll else 0
+    while True:
+        rv = watcher.read(timeout=timeout)
+        if len(rv):
+            consecutive_empty_reads = 0
+            queue.put_nowait((ident, rv))
+        elif finished:
+            # Once the done flag is set, poll until nothing comes out:
+            return
+        else:
+            consecutive_empty_reads += 1
+            finished = consecutive_empty_reads > 2 and done.is_set()
+        if not len(rv) and not wait_in_poll:
+            sleep(INTERVAL_SECONDS)
+
+
+# NB: To run more extensive concurrency/torture tests, increase the below parameters and run on bare metal. Be aware
+# that this will cause the test suite to take a very long time.
+@pytest.mark.parametrize("wait_in_poll", (True, False))
+@pytest.mark.parametrize("torture_seconds", (0.25, 1))
+@pytest.mark.parametrize("num_readers", sorted({1, 2, 4, cpu_count()}))
+def test_torture_concurrent_reads(num_readers, torture_seconds, wait_in_poll):
+    try_to_increase_watches()
+    stop_generating = Event()
+    stop_reading = Event()
+    queue = Queue()
+    with watcher_and_dir(flags.CREATE | flags.Q_OVERFLOW) as (watcher, tmpdir):
+        generator = Thread(
+            target=generate_changes,
+            args=(tmpdir, queue, stop_generating),
+            name="inotify test file change event generator",
+        )
+        generator.start()
+        threads = []
+        for i in range(num_readers):
+            threads.append(
+                Thread(
+                    target=read_changes,
+                    args=(watcher, wait_in_poll, queue, stop_reading),
+                    name="inotify test reader {}".format(i),
+                )
+            )
+            threads[-1].start()
+        sleep(torture_seconds)
+        stop_generating.set()
+        generator.join()
+        stop_reading.set()
+        for thread in threads:
+            thread.join()
+
+    observed = 0
+    observed_threads = set()
+    expected = None
+    while not queue.empty():
+        tid, value = queue.get_nowait()
+        if tid == generator.ident:
+            assert expected is None
+            expected = value
+        else:
+            observed_threads.add(tid)
+            assert not any(ev.mask & flags.Q_OVERFLOW for ev in value)
+            observed += len(value)
+
+    assert expected is not None
+    assert observed == expected
+
+    expected_read_sources = {t.ident for t in threads}
+    # NB: There is no way to make this test deterministically pass even a little bit, so it's relegated to a
+    # warning instead.
+    if observed_threads != expected_read_sources:
+        warnings.warn(
+            "Not all workers read events ({} workers; {} read events)".format(
+                num_readers, len(expected_read_sources)
+            )
+        )
