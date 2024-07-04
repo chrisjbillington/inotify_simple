@@ -1,6 +1,5 @@
 import os
 import warnings
-from time import sleep
 
 import pytest
 
@@ -28,12 +27,13 @@ except ImportError:
 # 3. Skipping the test or falling back to run it manually.
 SLOP_SECONDS = 0.1
 INTERVAL_SECONDS = 0.2
+SLEEP_SECONDS_AFTER_GENERATING_MAX_EVENTS = 0.5
 
 
 @pytest.mark.parametrize("timeout", (None, (INTERVAL_SECONDS + SLOP_SECONDS) * 1000))
 def test_wakeup(timeout):
-    with watcher_and_dir(flags.CREATE | flags.ONESHOT) as (watcher, tmpdir):
-        timer = Timer(INTERVAL_SECONDS, lambda: open(tmpdir + "/foo", "w").write(""))
+    with watcher_and_dir(flags.CREATE | flags.ONESHOT) as (watcher, tempdir):
+        timer = Timer(INTERVAL_SECONDS, lambda: open(tempdir + "/foo", "w").write(""))
         try:
             timer.start()
             assert_events_match(
@@ -46,9 +46,9 @@ def test_wakeup(timeout):
 @pytest.mark.parametrize("raw_close", (True, False))
 @pytest.mark.parametrize("read_first", (None, "success", "fail"))
 def test_close_while_waiting(read_first, raw_close):
-    with watcher_and_dir(flags.CREATE | flags.ONESHOT) as (watcher, tmpdir):
+    with watcher_and_dir(flags.CREATE | flags.ONESHOT) as (watcher, tempdir):
         if read_first == "success":
-            open(tmpdir + "/foo", "w").write("")
+            open(tempdir + "/foo", "w").write("")
             assert_events_match(
                 watcher.read(timeout=short_timeout()), 1, mask=flags.CREATE, name="foo"
             )
@@ -72,19 +72,24 @@ def test_close_while_waiting(read_first, raw_close):
             timer.cancel()
 
 
-def generate_changes(basedir, queue, done):
+def generate_changes(basedir, queue, done, maxevents):
     created = 0
     while not done.is_set():
-        os.mkdir("{}/{}.temp".format(basedir, created))
-        created += 1
+        for i in range(maxevents):
+            if i % 100 == 0 and done.is_set():
+                break
+            os.mkdir("{}/{}.temp".format(basedir, created))
+            created += 1
+        done.wait(SLEEP_SECONDS_AFTER_GENERATING_MAX_EVENTS)
+
     queue.put_nowait((current_thread().ident, created))
 
 
-def read_changes(watcher, wait_in_poll, queue, done):
+def read_changes(watcher, wait_in_poll, read_wait_seconds, queue, done):
     consecutive_empty_reads = 0
     finished = False
     ident = current_thread().ident
-    timeout = INTERVAL_SECONDS * 1000 if wait_in_poll else 0
+    timeout = read_wait_seconds * 1000 if wait_in_poll else 0
     while True:
         rv = watcher.read(timeout=timeout)
         if len(rv):
@@ -97,23 +102,25 @@ def read_changes(watcher, wait_in_poll, queue, done):
             consecutive_empty_reads += 1
             finished = consecutive_empty_reads > 2 and done.is_set()
         if not len(rv) and not wait_in_poll:
-            sleep(INTERVAL_SECONDS)
+            done.wait(read_wait_seconds)
 
 
 # NB: To run more extensive concurrency/torture tests, increase the below parameters and run on bare metal. Be aware
-# that this will cause the test suite to take a very long time.
+# that this will cause the test suite to take a very long time:
+@pytest.mark.parametrize("read_wait_seconds", (0, 0.05))
 @pytest.mark.parametrize("wait_in_poll", (True, False))
 @pytest.mark.parametrize("torture_seconds", (0.25, 1))
 @pytest.mark.parametrize("num_readers", sorted({1, 2, 4, cpu_count()}))
-def test_torture_concurrent_reads(num_readers, torture_seconds, wait_in_poll):
-    try_to_increase_watches()
+def test_torture_concurrent_reads(
+    num_readers, torture_seconds, wait_in_poll, read_wait_seconds
+):
     stop_generating = Event()
     stop_reading = Event()
     queue = Queue()
-    with watcher_and_dir(flags.CREATE | flags.Q_OVERFLOW) as (watcher, tmpdir):
+    with watcher_and_dir(flags.CREATE | flags.Q_OVERFLOW) as (watcher, tempdir):
         generator = Thread(
             target=generate_changes,
-            args=(tmpdir, queue, stop_generating),
+            args=(tempdir, queue, stop_generating, try_to_increase_watches()),
             name="inotify test file change event generator",
         )
         generator.start()
@@ -122,12 +129,18 @@ def test_torture_concurrent_reads(num_readers, torture_seconds, wait_in_poll):
             threads.append(
                 Thread(
                     target=read_changes,
-                    args=(watcher, wait_in_poll, queue, stop_reading),
+                    args=(
+                        watcher,
+                        wait_in_poll,
+                        read_wait_seconds,
+                        queue,
+                        stop_reading,
+                    ),
                     name="inotify test reader {}".format(i),
                 )
             )
             threads[-1].start()
-        sleep(torture_seconds)
+        stop_generating.wait(torture_seconds)
         stop_generating.set()
         generator.join()
         stop_reading.set()
@@ -156,6 +169,6 @@ def test_torture_concurrent_reads(num_readers, torture_seconds, wait_in_poll):
     if observed_threads != expected_read_sources:
         warnings.warn(
             "Not all workers read events ({} workers; {} read events)".format(
-                num_readers, len(expected_read_sources)
+                num_readers, len(observed_threads)
             )
         )

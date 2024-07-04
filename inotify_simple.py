@@ -84,7 +84,8 @@ class INotify(FileIO):
                 is available.
 
             closefd (bool): Whether to close the underlying file descriptor when this
-                object is garbage collected or when close() is called."""
+                object is garbage collected or when close() is called. See
+                :func:`~io.FileIO.__init__` for more information."""
 
         try:
             libc_so = find_library('c')
@@ -106,21 +107,41 @@ class INotify(FileIO):
         """Wrapper around ``inotify_add_watch()``. Returns the watch
         descriptor or raises an ``OSError`` on failure.
 
+        This method is idempotent and thread safe: repeated or concurrent calls to
+        :func:`~inotify_simple.INotify.add_watch` for the same ``path`` will return
+        the same watch descriptor integer. Calling :func:`~inotify_simple.INotify.add_watch`
+        multiple times for the same ``path`` with different ``mask`` values will
+        modify the watcher in-place.
+
+        .. note::
+            If a watch exists whose ``mask`` subscribes to events of a given type,
+            and that watch is modified with a new ``mask`` that unsubscribes from
+            that event type, subsequent calls to :func:`~inotify_simple.INotify.read`
+            may still return events of the originally-subscribed type due to queueing.
+
         Args:
             path (str, bytes, or PathLike): The path to watch. Will be encoded with
-                ``os.fsencode()`` before being passed to ``inotify_add_watch()``.
+                ``os.fsencode()`` before being passed to ``inotify_add_watch(2)``.
 
             mask (int): The mask of events to watch for. Can be constructed by
                 bitwise-ORing :class:`~inotify_simple.flags` together.
 
         Returns:
-            int: watch descriptor"""
+            int: A watch descriptor"""
         # Explicit conversion of Path to str required on Python < 3.6
         path = str(path) if hasattr(path, 'parts') else path
         return _libc_call(_libc.inotify_add_watch, self.fileno(), fsencode(path), mask)
 
     def rm_watch(self, wd):
         """Wrapper around ``inotify_rm_watch()``. Raises ``OSError`` on failure.
+
+        .. note::
+            After removing a watch, subsequent or concurrent calls to
+            :func:`~inotify_simple.INotify.read` may return events of type
+            :attr:`~inotify_simple.flags.IGNORED` with empty ``name`` fields indicating
+            events related to removed watches. These events may be observed even when
+            filesystem modifications on a path are performed after a call to
+            :func:`~inotify_simple.INotify.rm_watch` for that path.
 
         Args:
             wd (int): The watch descriptor to remove"""
@@ -129,6 +150,9 @@ class INotify(FileIO):
     def read(self, timeout=None, read_delay=None):
         """Read the inotify file descriptor and return the resulting
         :attr:`~inotify_simple.Event` namedtuples (wd, mask, cookie, name).
+
+        This method is thread safe; concurrent readers will not block unexpectedly or
+        receive duplicate events.
 
         Args:
             timeout (int): The time in milliseconds to wait for events if there are
