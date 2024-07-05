@@ -134,7 +134,8 @@ class INotify(FileIO):
         Args:
             wd_or_path (int or PathLike): The watch descriptor number or path to remove."""
         if not isinstance(wd_or_path, int):
-            wd_or_path = self._watches.get(_normalize_path(wd_or_path), -1)
+            # -1 causes the same OSError that would occur if e.g. removing a watch twice:
+            wd_or_path = self._watches.pop(_normalize_path(wd_or_path), -1)
 
         _libc_call(_libc.inotify_rm_watch, self.fileno(), wd_or_path)
 
