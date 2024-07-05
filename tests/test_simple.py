@@ -1,11 +1,11 @@
 import pytest
 
-from inotify_simple import flags
+from inotify_simple import flags, INotify
 from tests import (
     assert_events_match,
     assert_takes_between,
     watcher_and_dir,
-    short_timeout,
+    short_timeout, raises_einval,
 )
 
 
@@ -70,13 +70,21 @@ def test_rm_watch():
         assert_events_match(
             watcher.read(timeout=short_timeout()), 1, mask=flags.IGNORED, name=""
         )
-        with pytest.raises(OSError, match="Invalid argument"):
+        with raises_einval():
             watcher.rm_watch(wd)
     with watcher_and_dir(flags.CREATE) as (watcher, tempdir):
         wd = watcher.add_watch(tempdir, flags.CREATE)
         watcher.rm_watch(wd)
-        with pytest.raises(OSError, match="Invalid argument"):
+        with raises_einval():
             watcher.rm_watch(wd)
         assert_events_match(
             watcher.read(timeout=short_timeout()), 1, mask=flags.IGNORED, name=""
         )
+
+    empty_watcher = INotify()
+    with watcher_and_dir(flags.CREATE) as (watcher, tempdir):
+        for bad_watch in (-1, 0, 8192):
+            with raises_einval():
+                watcher.rm_watch(bad_watch)
+            with raises_einval():
+                empty_watcher.rm_watch(bad_watch)

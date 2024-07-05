@@ -93,6 +93,13 @@ def raises_ebadfd():
 
 
 @contextmanager
+def raises_einval():
+    with pytest.raises(OSError) as exc_info:
+        yield
+    assert exc_info.value.errno == errno.EINVAL
+
+
+@contextmanager
 def raises_not_open_for_writing():
     # Exception type changed between Python 2 and 3.
     etype = ValueError if PY2 else UnsupportedOperation
