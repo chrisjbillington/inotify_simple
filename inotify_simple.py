@@ -1,4 +1,4 @@
-from sys import version_info, getfilesystemencoding
+from sys import version_info, maxsize
 import os
 from enum import Enum, IntEnum
 from collections import namedtuple
@@ -12,13 +12,31 @@ from termios import FIONREAD
 from fcntl import ioctl
 from io import FileIO
 
-PY2 = version_info.major < 3
-if PY2:
-    fsencode = lambda s: s if isinstance(s, str) else s.encode(getfilesystemencoding())
+try:
+    from os import fsencode, fsdecode
+except ImportError:
+    from backports.os import fsencode, fsdecode
+
+if version_info.major < 3 and maxsize < 2**32:
     # In 32-bit Python < 3 the inotify constants don't fit in an IntEnum:
     IntEnum = type('IntEnum', (long, Enum), {})
-else:
-    from os import fsencode, fsdecode
+
+
+try:
+    # Didn't exist before Python 3.6
+    from os import PathLike as _PathClass
+except ImportError:
+    try:
+        # Didn't exist before Python 3.4
+        from pathlib import Path as _PathClass
+    except ImportError:
+        # Doesn't exist in this python, so nothing will pass isinstance:
+        _PathClass = type('_PathClass', (), {})
+
+
+def _normalize_path(path):
+    # Explicit conversion of Path to str required on Python < 3.6
+    return fsencode(str(path) if isinstance(path, _PathClass) else path)
 
 
 __version__ = '1.3.5'
@@ -91,6 +109,7 @@ class INotify(FileIO):
         FileIO.__init__(self, _libc_call(_libc.inotify_init1, flags), mode='rb')
         self._poller = poll()
         self._poller.register(self.fileno())
+        self._watches = dict()
 
     def add_watch(self, path, mask):
         """Wrapper around ``inotify_add_watch()``. Returns the watch
@@ -100,21 +119,25 @@ class INotify(FileIO):
             path (str, bytes, or PathLike): The path to watch. Will be encoded with
                 ``os.fsencode()`` before being passed to ``inotify_add_watch()``.
 
-            mask (int): The mask of events to watch for. Can be constructed by
-                bitwise-ORing :class:`~inotify_simple.flags` together.
+            mask (int (or long on Python 2)): The mask of events to watch for. Can be
+                constructed by bitwise-ORing :class:`~inotify_simple.flags` together.
 
         Returns:
             int: watch descriptor"""
-        # Explicit conversion of Path to str required on Python < 3.6
-        path = str(path) if hasattr(path, 'parts') else path
-        return _libc_call(_libc.inotify_add_watch, self.fileno(), fsencode(path), mask)
+        path = _normalize_path(path)
+        self._watches[path] = rv = _libc_call(_libc.inotify_add_watch, self.fileno(), path, mask)
+        return rv
 
-    def rm_watch(self, wd):
+    def rm_watch(self, wd_or_path):
         """Wrapper around ``inotify_rm_watch()``. Raises ``OSError`` on failure.
 
         Args:
-            wd (int): The watch descriptor to remove"""
-        _libc_call(_libc.inotify_rm_watch, self.fileno(), wd)
+            wd_or_path (int or PathLike): The watch descriptor number or path to remove."""
+        if not isinstance(wd_or_path, int):
+            # -1 causes the same OSError that would occur if e.g. removing a watch twice:
+            wd_or_path = self._watches.pop(_normalize_path(wd_or_path), -1)
+
+        _libc_call(_libc.inotify_rm_watch, self.fileno(), wd_or_path)
 
     def read(self, timeout=None, read_delay=None):
         """Read the inotify file descriptor and return the resulting
@@ -158,6 +181,13 @@ class INotify(FileIO):
             return b''
         return os.read(self.fileno(), bytes_avail.value)
 
+    def close(self):
+        try:
+            return super(INotify, self).close()
+        finally:
+            # If close is called during __del__ the _watches field may have already been destructed:
+            getattr(self, '_watches', []).clear()
+
 
 def parse_events(data):
     """Unpack data read from an inotify file descriptor into 
@@ -176,7 +206,7 @@ def parse_events(data):
         wd, mask, cookie, namesize = unpack_from(_EVENT_FMT, data, pos)
         pos += _EVENT_SIZE + namesize
         name = data[pos - namesize : pos].split(b'\x00', 1)[0]
-        events.append(Event(wd, mask, cookie, name if PY2 else fsdecode(name)))
+        events.append(Event(wd, mask, cookie, fsdecode(name)))
     return events
 
 

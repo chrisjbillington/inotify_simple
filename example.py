@@ -29,3 +29,13 @@ for event in inotify.read():
     print(event)
     for flag in flags.from_mask(event.mask):
         print('    ' + str(flag))
+
+os.mkdir('/tmp/inotify_test2')
+os.mkdir('/tmp/inotify_test3')
+wd = inotify.add_watch('/tmp/inotify_test2', watch_flags)
+inotify.add_watch('/tmp/inotify_test3', watch_flags)
+# Stop watching for events on a watch descriptor without removing the directory:
+inotify.rm_watch(wd)
+
+# Stop watching for events on a path:
+inotify.rm_watch('/tmp/inotify_test3')
