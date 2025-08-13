@@ -1,0 +1,11 @@
+[project]
+name = "inotify_simple"
+authors = [
+    {name = "Chris Billington", email = "chrisjbillington@gmail.com"}
+]
+version = "1.3.3"
+description = "A simple wrapper around inotify. No fancy bells and whistles, just a literal wrapper with ctypes. Under 100 lines of code!"
+readme = "README.md"
+license-files = ["LICENSE"]
+requires-python = ">=2.7, !=3.0.*, !=3.1.*"
+dependencies = []
