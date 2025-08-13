@@ -9,3 +9,8 @@ readme = "README.md"
 license-files = ["LICENSE"]
 requires-python = ">=2.7, !=3.0.*, !=3.1.*"
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/chrisjbillington/inotify_simple.git"
+Documentation = "http://inotify-simple.readthedocs.io/"
+Issues = "https://github.com/chrisjbillington/inotify_simple/issues"
