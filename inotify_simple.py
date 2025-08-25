@@ -13,7 +13,7 @@ from io import FileIO
 from os import fsencode, fsdecode
 
 
-__version__ = '2.1.0.dev1'
+__version__ = '2.0.1'
 
 __all__ = ['Event', 'INotify', 'flags', 'masks', 'parse_events']
 
