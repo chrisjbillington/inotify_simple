@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["inotify_simple"]
+
+[project]
+name = "inotify_simple"
+description = "A simple wrapper around inotify. No fancy bells and whistles, just a literal wrapper with ctypes. Under 100 lines of code!"
+authors = [
+    {name = "Chris Billington", email = "chrisjbillington@gmail.com"},
+]
+keywords = ["inotify"]
+license = "BSD-2-Clause"
+license-files = ["LICENSE"]
+requires-python = ">=3.6"
+dynamic = ["version"]
+
+[tool.setuptools.dynamic]
+version = {attr = "inotify_simple.__version__"}
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.urls]
+Repository = "https://github.com/chrisjbillington/inotify_simple.git"
+Documentation = "http://inotify-simple.readthedocs.io/"
+Issues = "https://github.com/chrisjbillington/inotify_simple/issues"
