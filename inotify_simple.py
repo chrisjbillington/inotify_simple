@@ -73,8 +73,8 @@ class INotify(FileIO):
                 is available.
 
             closefd (bool): Whether to close the underlying file descriptor when this
-                object is garbage collected or when `~inotify_simple.INotify.close` is
-                called."""
+                object is garbage collected or when
+                :func:`~inotify_simple.INotify.close` is called."""
             
         global _libc; _libc = _libc or CDLL(find_library('c'), use_errno=True)
         flags = (not inheritable) * os.O_CLOEXEC | bool(nonblocking) * os.O_NONBLOCK
