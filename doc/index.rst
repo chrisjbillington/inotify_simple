@@ -21,8 +21,8 @@ available data from the file descriptor and returns events as
 :attr:`~inotify_simple.Event` namedtuples after unpacking them with the ``struct``
 module. ``inotify_add_watch()`` and ``inotify_rm_watch()`` are wrapped with no changes
 at all, taking and returning watch descriptor integers that calling code is expected to
-keep track of itself, just as one would use inotify from C. Works with Python 2.7 and
-Python >= 3.2.
+keep track of itself, just as one would use inotify from C. Works with Python 3.6 or
+higher
 
 `View on PyPI <http://pypi.python.org/pypi/inotify_simple>`_
 | `Fork me on GitHub <https://github.com/chrisjbillington/inotify_simple>`_
@@ -43,10 +43,6 @@ or to install from source:
 .. code-block:: bash
 
     $ python3 setup.py install
-
-.. note::
-    If on Python < 3.4, you'll need the backported `enum34 module.
-    <https://pypi.python.org/pypi/enum34>`_
 
 ------------
 Introduction

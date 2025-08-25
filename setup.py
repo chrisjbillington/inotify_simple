@@ -20,6 +20,5 @@ setup(
     url='https://github.com/chrisjbillington/inotify_simple',
     license="BSD",
     py_modules=["inotify_simple"],
-    install_requires=["enum34; python_version < '3.4'"],
-    python_requires=">=2.7, !=3.0.*, !=3.1.*",
+    python_requires=">=3.6",
 )

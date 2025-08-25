@@ -1,6 +1,5 @@
-from sys import version_info, getfilesystemencoding
 import os
-from enum import Enum, IntEnum
+from enum import IntEnum
 from collections import namedtuple
 from struct import unpack_from, calcsize
 from select import poll
@@ -11,17 +10,10 @@ from errno import EINTR
 from termios import FIONREAD
 from fcntl import ioctl
 from io import FileIO
-
-PY2 = version_info.major < 3
-if PY2:
-    fsencode = lambda s: s if isinstance(s, str) else s.encode(getfilesystemencoding())
-    # In 32-bit Python < 3 the inotify constants don't fit in an IntEnum:
-    IntEnum = type('IntEnum', (long, Enum), {})
-else:
-    from os import fsencode, fsdecode
+from os import fsencode, fsdecode
 
 
-__version__ = '1.3.5'
+__version__ = '2.0.0.dev1'
 
 __all__ = ['Event', 'INotify', 'flags', 'masks', 'parse_events']
 
@@ -39,9 +31,9 @@ def _libc_call(function, *args):
             raise OSError(errno, os.strerror(errno))
 
 
-#: A ``namedtuple`` (wd, mask, cookie, name) for an inotify event. On Python 3 the
-#: :attr:`~inotify_simple.Event.name`  field is a ``str`` decoded with
-#: ``os.fsdecode()``, on Python 2 it is ``bytes``.
+#: A ``namedtuple`` (wd, mask, cookie, name) for an inotify event. The
+#: :attr:`~inotify_simple.Event.name` field is a ``str`` decoded with
+#: ``os.fsdecode()``.
 Event = namedtuple('Event', ['wd', 'mask', 'cookie', 'name'])
 
 _EVENT_FMT = 'iIII'
@@ -69,9 +61,7 @@ class INotify(FileIO):
                 child processes. The default,``False``, corresponds to passing the
                 ``IN_CLOEXEC`` flag to ``inotify_init1()``. Setting this flag when
                 opening filedescriptors is the default behaviour of Python standard
-                library functions since PEP 446. On Python < 3.3, the file descriptor
-                will be inheritable and this argument has no effect, one must instead
-                use fcntl to set FD_CLOEXEC to make it non-inheritable.
+                library functions since PEP 446.
 
             nonblocking (bool): whether to open the inotify file descriptor in
                 nonblocking mode, corresponding to passing the ``IN_NONBLOCK`` flag to
@@ -81,13 +71,9 @@ class INotify(FileIO):
                 reads of the file descriptor (for example if the application reads data
                 manually with ``os.read(fd)``) to raise ``BlockingIOError`` if no data
                 is available."""
-        try:
-            libc_so = find_library('c')
-        except RuntimeError: # Python on Synology NASs raises a RuntimeError
-            libc_so = None
-        global _libc; _libc = _libc or CDLL(libc_so or 'libc.so.6', use_errno=True)
-        O_CLOEXEC = getattr(os, 'O_CLOEXEC', 0) # Only defined in Python 3.3+
-        flags = (not inheritable) * O_CLOEXEC | bool(nonblocking) * os.O_NONBLOCK 
+            
+        global _libc; _libc = _libc or CDLL(find_library('c'), use_errno=True)
+        flags = (not inheritable) * os.O_CLOEXEC | bool(nonblocking) * os.O_NONBLOCK 
         FileIO.__init__(self, _libc_call(_libc.inotify_init1, flags), mode='rb')
         self._poller = poll()
         self._poller.register(self.fileno())
@@ -105,8 +91,6 @@ class INotify(FileIO):
 
         Returns:
             int: watch descriptor"""
-        # Explicit conversion of Path to str required on Python < 3.6
-        path = str(path) if hasattr(path, 'parts') else path
         return _libc_call(_libc.inotify_add_watch, self.fileno(), fsencode(path), mask)
 
     def rm_watch(self, wd):
@@ -176,7 +160,7 @@ def parse_events(data):
         wd, mask, cookie, namesize = unpack_from(_EVENT_FMT, data, pos)
         pos += _EVENT_SIZE + namesize
         name = data[pos - namesize : pos].split(b'\x00', 1)[0]
-        events.append(Event(wd, mask, cookie, name if PY2 else fsdecode(name)))
+        events.append(Event(wd, mask, cookie, fsdecode(name)))
     return events
 
 
