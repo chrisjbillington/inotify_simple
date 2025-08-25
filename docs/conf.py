@@ -9,27 +9,20 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
+    'sphinx_rtd_theme',
 ]
 
-master_doc = 'index'
-project = u'inotify_simple'
-copyright = u'2016, Chris Billington'
+root_doc = 'index'
+project = 'inotify-simple'
+copyright = '2016, Chris Billington'
 version = __version__
-release = '.'.join(__version__.split('.')[:-1])
+release = '.'.join(__version__.split('.')[:2])
 
 autodoc_member_order = 'bysource'
 autoclass_content = 'both'
 
-on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
-
-intersphinx_mapping = {
-    'python': ('https://docs.python.org/3/', None),
-}
-
-if not on_rtd:  # only import and set the theme if we're building docs locally
-    import sphinx_rtd_theme
-    html_theme = 'sphinx_rtd_theme'
-    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+intersphinx_mapping = {'python': ('https://docs.python.org/3/', None)}
+html_theme = 'sphinx_rtd_theme'
 
 
 # Make full source as a separate file:
