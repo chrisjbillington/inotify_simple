@@ -13,7 +13,7 @@ from io import FileIO
 from os import fsencode, fsdecode
 
 
-__version__ = '2.0.0'
+__version__ = '2.1.0.dev1'
 
 __all__ = ['Event', 'INotify', 'flags', 'masks', 'parse_events']
 
@@ -48,7 +48,7 @@ class INotify(FileIO):
     #: :func:`~inotify_simple.INotify.fileno`
     fd = property(FileIO.fileno)
 
-    def __init__(self, inheritable=False, nonblocking=False):
+    def __init__(self, inheritable=False, nonblocking=False, closefd=True):
         """File-like object wrapping ``inotify_init1()``. Raises ``OSError`` on failure.
         :func:`~inotify_simple.INotify.close` should be called when no longer needed.
         Can be used as a context manager to ensure it is closed, and can be used
@@ -70,11 +70,16 @@ class INotify(FileIO):
                 blocking behaviour according to the given timeout, but will cause other
                 reads of the file descriptor (for example if the application reads data
                 manually with ``os.read(fd)``) to raise ``BlockingIOError`` if no data
-                is available."""
+                is available.
+
+            closefd (bool): Whether to close the underlying file descriptor when this
+                object is garbage collected or when `~inotify_simple.INotify.close` is
+                called."""
             
         global _libc; _libc = _libc or CDLL(find_library('c'), use_errno=True)
-        flags = (not inheritable) * os.O_CLOEXEC | bool(nonblocking) * os.O_NONBLOCK 
-        FileIO.__init__(self, _libc_call(_libc.inotify_init1, flags), mode='rb')
+        flags = (not inheritable) * os.O_CLOEXEC | bool(nonblocking) * os.O_NONBLOCK
+        fd = _libc_call(_libc.inotify_init1, flags)
+        super().__init__(fd, mode='rb', closefd=closefd)
         self._poller = poll()
         self._poller.register(self.fileno())
 
