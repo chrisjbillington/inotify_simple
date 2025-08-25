@@ -1,6 +1,6 @@
 
 ========================
-inotify_simple |release|
+inotify-simple |release|
 ========================
 
 `Chris Billington <mailto:chrisjbillington@gmail.com>`_, |today|
@@ -10,9 +10,9 @@ inotify_simple |release|
     :local:
 
 
-``inotify_simple`` is a simple Python wrapper around
+``inotify-simple`` is a simple Python wrapper around
 `inotify <http://man7.org/linux/man-pages/man7/inotify.7.html>`_.
-No fancy bells and whistles, just a literal wrapper with ctypes. Only ~100
+No fancy bells and whistles, just a literal wrapper with ctypes. Less than 100
 lines of code!
 
 ``inotify_init1()`` is wrapped as a file-like object, :class:`~inotify_simple.INotify`,
@@ -24,25 +24,25 @@ at all, taking and returning watch descriptor integers that calling code is expe
 keep track of itself, just as one would use inotify from C. Works with Python 3.6 or
 higher
 
-`View on PyPI <http://pypi.python.org/pypi/inotify_simple>`_
-| `Fork me on GitHub <https://github.com/chrisjbillington/inotify_simple>`_
+`View on PyPI <http://pypi.python.org/pypi/inotify-simple>`_
+| `View on GitHub <https://github.com/chrisjbillington/inotify_simple>`_
 | `Read the docs <http://inotify-simple.readthedocs.io>`_
 
 ------------
 Installation
 ------------
 
-to install ``inotify_simple``, run:
+to install ``inotify-simple``, run:
 
 .. code-block:: bash
 
-    $ pip3 install inotify_simple
+    $ pip install inotify-simple
 
-or to install from source:
+or to install from source, clone this repository and run:
 
 .. code-block:: bash
 
-    $ python3 setup.py install
+    $ pip install .
 
 ------------
 Introduction

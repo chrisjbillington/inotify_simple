@@ -1,9 +1,8 @@
-# inotify_simple 2.0
+# inotify-simple 2.0
 
-`inotify_simple` is a simple Python wrapper around
-[inotify](http://man7.org/linux/man-pages/man7/inotify.7.html).
-No fancy bells and whistles, just a literal wrapper with ctypes. Only  \~100
-lines of code!
+`inotify-simple` is a simple Python wrapper around
+[inotify](http://man7.org/linux/man-pages/man7/inotify.7.html). No fancy bells and
+whistles, just a literal wrapper with ctypes. Less than 100 lines of code!
 
 `inotify_init1()` is wrapped as a file-like object, `INotify()`, holding the inotify
 file descriptor. `INotify().read()` reads available data from the file descriptor and
@@ -12,8 +11,8 @@ returns events as `namedtuple` objects after unpacking them with the `struct` mo
 taking and returning watch descriptor integers that calling code is expected to keep
 track of itself, just as one would use `inotify` from C. Requires Python 3.6 or higher.
 
-[View on PyPI](http://pypi.python.org/pypi/inotify_simple) |
-[Fork me on github](https://github.com/chrisjbillington/inotify_simple) |
+[View on PyPI](http://pypi.python.org/pypi/inotify-simple) |
+[View on GitHub](https://github.com/chrisjbillington/inotify_simple) |
 [Read the docs](http://inotify-simple.readthedocs.io)
 
 ## Project status: stable
@@ -24,16 +23,16 @@ have been no commits in a long time, this is normal.
 
 ## Installation
 
-to install `inotify_simple`, run:
+to install `inotify-simple`, run:
 
-```
-$ pip3 install inotify_simple
+```bash
+$ pip install inotify-simple
 ```
 
-or to install from source:
+or to install from source, clone this repository and run:
 
-```
-$ python3 setup.py install
+```bash
+$ pip install .
 ```
 
 ## Introduction

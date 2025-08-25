@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 py-modules = ["inotify_simple"]
 
 [project]
-name = "inotify_simple"
+name = "inotify-simple"
 description = "A simple wrapper around inotify. No fancy bells and whistles, just a literal wrapper with ctypes. Under 100 lines of code!"
 authors = [
     {name = "Chris Billington", email = "chrisjbillington@gmail.com"},
